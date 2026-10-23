@@ -1,22 +1,34 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { loadSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme';
 
 export default function RootLayout() {
   const theme = useAppTheme();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    loadSettings()
+      .catch(() => {})
+      .finally(() => setReady(true));
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaProvider>
         <StatusBar style={theme.statusBar} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.background },
-          }}
-        />
+        {ready && (
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.background },
+            }}
+          />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

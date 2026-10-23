@@ -18,6 +18,7 @@ const MIGRATIONS: string[] = [
     page_count INTEGER
   );
   CREATE INDEX idx_books_last_read ON books(last_read_at);`,
+  `CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);`,
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {

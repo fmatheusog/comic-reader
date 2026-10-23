@@ -87,3 +87,10 @@ pdf += `trailer\n<< /Size ${pdfObjs.length + 1} /Root 1 0 R >>\nstartxref\n${xre
 writeFileSync(new URL('exemplo.pdf', out), pdf, 'latin1');
 
 console.log('Fixtures geradas em fixtures/');
+
+// --- EPUB (3 capítulos, com capa, imagem e sumário) ---
+import { buildEpub } from './epub-builder.mjs';
+const cover = png(400, 600, [90, 60, 140], 7);
+writeFileSync(new URL('exemplo.epub', out), await buildEpub(cover, 'epub3'));
+writeFileSync(new URL('exemplo-epub2.epub', out), await buildEpub(cover, 'epub2'));
+console.log('EPUBs gerados.');

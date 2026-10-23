@@ -1,5 +1,7 @@
 import { useColorScheme } from 'react-native';
 
+import { useSettings } from '@/state/settings';
+
 export type ThemeName = 'light' | 'sepia' | 'dark';
 
 export type Theme = {
@@ -48,5 +50,7 @@ export const themes: Record<ThemeName, Theme> = {
 
 export function useAppTheme(): Theme {
   const scheme = useColorScheme();
-  return scheme === 'dark' ? themes.dark : themes.light;
+  const { theme } = useSettings();
+  if (theme === 'system') return scheme === 'dark' ? themes.dark : themes.light;
+  return themes[theme];
 }

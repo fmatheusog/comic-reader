@@ -4,6 +4,7 @@ import { File } from 'expo-file-system';
 import { deleteBookRow, insertBook, type BookFormat } from '@/db/books';
 
 import { extractCbz } from './cbz';
+import { extractEpub, readEpubMeta } from './epub';
 import { createPdfCover } from './pdf';
 import { bookDir, newId, removeBookFiles } from './storage';
 
@@ -66,6 +67,16 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
       title = info?.series && info.title ? `${info.series} - ${info.title}` : (info?.title ?? title);
       author = info?.writer ?? null;
       // as páginas já estão extraídas; o arquivo original só ocuparia espaço em dobro
+      original.delete();
+    }
+
+    if (format === 'epub') {
+      await extractEpub(id, original.uri);
+      const meta = await readEpubMeta(id);
+      title = meta.title ?? title;
+      author = meta.author;
+      coverPath = meta.coverPath;
+      pageCount = meta.chapters;
       original.delete();
     }
 
