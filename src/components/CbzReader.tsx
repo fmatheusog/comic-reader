@@ -10,6 +10,7 @@ import { parsePosition, useSaveProgress } from '@/hooks/useSaveProgress';
 import { t } from '@/i18n/pt';
 import { readExtracted } from '@/services/cbz';
 import { resolveUri } from '@/services/storage';
+import { updateSettings, useSettings } from '@/state/settings';
 import { buildSpreads, spreadIndexOf } from '@/utils/spreads';
 
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
@@ -22,7 +23,7 @@ export function CbzReader({ book }: { book: Book }) {
 
   const pages = useMemo(() => readExtracted(book.id).pages, [book.id]);
   const [rtl, setRtl] = useState(book.rtl);
-  const [dual, setDual] = useState(true);
+  const dual = useSettings().dualPage;
   const [controls, setControls] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [page, setPage] = useState(() => {
@@ -113,7 +114,7 @@ export function CbzReader({ book }: { book: Book }) {
         <View style={styles.row}>
           <Text style={styles.counter}>{t.pageOf(page + 1, pages.length)}</Text>
           <View style={styles.buttons}>
-            {landscape && <ChromeButton label={t.twoPages} active={dual} onPress={() => setDual(!dual)} />}
+            {landscape && <ChromeButton label={t.twoPages} active={dual} onPress={() => updateSettings({ dualPage: !dual })} />}
             <ChromeButton label={t.mangaMode} active={rtl} onPress={toggleRtl} />
           </View>
         </View>

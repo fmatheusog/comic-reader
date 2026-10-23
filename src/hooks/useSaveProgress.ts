@@ -5,7 +5,9 @@ import { saveProgress } from '@/db/books';
 /** Grava o progresso 500 ms depois da última mudança e também ao sair do leitor. */
 export function useSaveProgress(bookId: string, progress: number, position: unknown, enabled = true) {
   const latest = useRef({ progress, position });
-  latest.current = { progress, position };
+  useEffect(() => {
+    latest.current = { progress, position };
+  });
 
   useEffect(() => {
     if (!enabled) return;

@@ -45,40 +45,43 @@ export function EpubReader({ book }: { book: Book }) {
   // posição a restaurar quando o capítulo carregar (não muda a cada rolagem)
   const pendingRestore = useRef<{ ratio: number; anchor?: string }>({ ratio: saved?.ratio ?? 0 });
   const latest = useRef({ settings, theme });
-  latest.current = { settings, theme };
+  useEffect(() => {
+    latest.current = { settings, theme };
+  });
 
   const total = epub?.pkg.spine.length ?? 0;
   useSaveProgress(book.id, total ? (pos.chapter + pos.ratio) / total : 0, pos, !!epub && ready);
 
-  useEffect(() => {
-    loadEpub(book.id)
-      .then(setEpub)
-      .catch(() => setError(true));
-  }, [book.id]);
-
-  const openChapter = useCallback(
-    async (index: number, ratio = 0, anchor?: string) => {
-      if (!epub) return;
-      const i = Math.min(Math.max(index, 0), epub.pkg.spine.length - 1);
+  const openChapterIn = useCallback(
+    async (eb: EpubBook, index: number, ratio = 0, anchor?: string) => {
+      const i = Math.min(Math.max(index, 0), eb.pkg.spine.length - 1);
       setReady(false);
       pendingRestore.current = { ratio, anchor };
       setPos({ chapter: i, ratio });
       try {
-        const c = await readChapter(book.id, epub, i);
+        const c = await readChapter(book.id, eb, i);
         const css = readerCss(latest.current.settings, latest.current.theme);
         setSource({ html: buildChapterHtml(c, css), baseUrl: c.baseUrl, key: `${i}-${Date.now()}` });
       } catch {
         setError(true);
       }
     },
-    [epub, book.id],
+    [book.id],
   );
 
+  const openChapter = (index: number, ratio = 0, anchor?: string) => {
+    if (epub) openChapterIn(epub, index, ratio, anchor);
+  };
+
   useEffect(() => {
-    if (epub) openChapter(pos.chapter, pos.ratio);
-    // só na primeira carga do EPUB
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [epub]);
+    const start = parsePosition<Pos>(book.position);
+    loadEpub(book.id)
+      .then((eb) => {
+        setEpub(eb);
+        return openChapterIn(eb, start?.chapter ?? 0, start?.ratio ?? 0);
+      })
+      .catch(() => setError(true));
+  }, [book.id, book.position, openChapterIn]);
 
   // aplica tema/fonte sem recarregar o capítulo
   useEffect(() => {

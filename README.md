@@ -1,56 +1,115 @@
-# Welcome to your Expo app 👋
+# Comic Reader
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App Android (celular e tablet) para ler os seus próprios livros e quadrinhos: **EPUB, PDF e CBZ**.
+Uso pessoal, 100% offline: sem backend, sem conta, sem scraper. Você escolhe os arquivos pelo seletor do Android e o app copia tudo para o armazenamento privado dele.
 
-## Get started
+- React Native 0.88 + Expo SDK 58 (nova arquitetura), TypeScript, expo-router
+- Interface em português do Brasil
 
-1. Install dependencies
+## Recursos
 
-   ```bash
-   npm install
-   ```
+- **Biblioteca**: grade de capas responsiva (mais colunas no tablet), busca, filtros (Todos/Lendo/Novos/Lidos), ordenação, faixa "Continuar lendo", renomear, marcar como lido e excluir (toque e segure na capa).
+- **CBZ**: extração para o disco (sem carregar o arquivo na memória), ordenação natural das páginas, leitura de `ComicInfo.xml` (detecta mangá), paginação horizontal, zoom com pinça e toque duplo, duas páginas lado a lado com o aparelho deitado, sentido de leitura alternável.
+- **PDF**: leitor nativo (`react-native-pdf`), capa gerada da primeira página (`react-native-pdf-thumbnail`).
+- **EPUB**: um capítulo por vez numa WebView, com scripts removidos, CSS do app (tema, fonte, tamanho, espaçamento, margens), sumário, links internos, progresso por capítulo + posição de rolagem.
+- **Gestos por zona**: esquerda = voltar, direita = avançar, centro = mostrar/ocultar controles (invertido no modo mangá).
+- **Temas**: sistema, claro, sépia e escuro. Progresso salvo automaticamente.
 
-2. Start the app
+### Decisões
 
-   ```bash
-   npx expo start
-   ```
+- **Persistência: `expo-sqlite`.** Permite buscar, filtrar e ordenar com SQL e gravar o progresso de forma atômica a cada página, sem reescrever um JSON inteiro.
+- Os arquivos ficam em `<documentos do app>/books/<id>/`. Para CBZ e EPUB o arquivo original é descartado depois de extraído (para não ocupar o dobro de espaço); o PDF é mantido como está.
+- Os caminhos no banco são relativos, então sobrevivem a atualizações do app.
 
-In the output, you'll find options to open the app in a
+## Rodando em desenvolvimento
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+O app usa módulos nativos (`react-native-pdf`, `react-native-zip-archive`, `react-native-blob-util`...), então **não funciona no Expo Go**. É preciso um *development build* (`expo-dev-client`).
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+**Opção A: build local (precisa de Android Studio / JDK 17 e `ANDROID_HOME`)**
 
-### Other setup steps
+```bash
+npx expo run:android
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Isso gera a pasta `android/`, compila, instala no emulador ou aparelho conectado (depuração USB ligada) e inicia o Metro.
 
-## Learn more
+**Opção B: development build na nuvem (EAS)**
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install -g eas-cli
+eas login
+eas build -p android --profile development
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Instale o APK gerado no aparelho e rode `npx expo start --dev-client`.
 
-## Join the community
+### Verificações
 
-Join our community of developers creating universal apps.
+```bash
+npm run typecheck      # tsc --noEmit
+npm test               # testes dos parsers (EPUB, ComicInfo, ordenação natural, páginas duplas)
+npx expo-doctor
+npx eslint src
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Arquivos de exemplo
+
+```bash
+node scripts/make-fixtures.mjs
+```
+
+Gera em `fixtures/` um CBZ (12 páginas numeradas, com `ComicInfo.xml` de mangá), um PDF de 3 páginas e dois EPUBs (EPUB 3 com `nav` e EPUB 2 com NCX), todos com conteúdo próprio. Copie para o aparelho (`adb push fixtures/exemplo.cbz /sdcard/Download/`) e importe pelo app.
+
+## Gerando o APK
+
+### Com EAS Build (nuvem)
+
+```bash
+eas login
+eas build -p android --profile preview
+```
+
+O perfil `preview` (em `eas.json`) gera um **APK** instalável. Ao terminar, o EAS mostra um link e um QR code para baixar.
+
+### Local, com Android Studio
+
+Requisitos: Android Studio (SDK + JDK 17) e `ANDROID_HOME` configurado.
+
+```bash
+npx expo prebuild --platform android
+cd android
+./gradlew assembleRelease      # no Windows: gradlew.bat assembleRelease
+```
+
+O APK sai em `android/app/build/outputs/apk/release/app-release.apk`. Por padrão o template assina o release com a chave de debug, o que serve para uso pessoal. Para uma chave sua, configure um `keystore` em `android/app/build.gradle`.
+
+## Instalando no tablet
+
+1. Copie o APK para o tablet (cabo USB, Drive, e-mail) ou baixe pelo link do EAS direto no aparelho.
+2. Abra o arquivo no tablet e permita "Instalar apps desconhecidos" para o app que o abriu (Arquivos ou Chrome) quando o Android pedir.
+3. Ou, com depuração USB ligada: `adb install -r app-release.apk`.
+4. Abra o Comic Reader, toque em **Importar** e escolha seus arquivos.
+
+## Estrutura
+
+```
+src/app/            rotas (expo-router): biblioteca, leitor/[id], ajustes
+src/components/     BookCard, leitores (Cbz/Pdf/Epub), ZoomableView, barras do leitor
+src/db/             SQLite: migrações e consultas
+src/services/       importação, CBZ, PDF, EPUB (parser puro + I/O), armazenamento
+src/state/          ajustes persistidos
+src/i18n/ src/theme/ textos pt-BR e temas
+scripts/            gerador de arquivos de exemplo
+tests/              testes dos módulos puros
+```
+
+## Limitações conhecidas
+
+- Sem DRM: arquivos protegidos não abrem.
+- Links externos dentro de EPUBs são ignorados (o app é offline).
+- O zoom do CBZ é centrado (não segue o ponto da pinça) e, com zoom ativo, a troca de página é por toque duplo para sair do zoom.
+- Ícone e splash ainda são os do template do Expo.

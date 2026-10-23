@@ -98,6 +98,13 @@ export default function LibraryScreen() {
             {t.library}
           </Text>
           <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel={t.settings}
+            style={styles.gear}>
+            <Text style={{ color: theme.text, fontSize: 22 }}>⚙</Text>
+          </Pressable>
+          <Pressable
             onPress={doImport}
             disabled={importing}
             accessibilityRole="button"
@@ -151,6 +158,7 @@ export default function LibraryScreen() {
       />
 
       <BookActionsModal
+        key={selected?.id ?? 'none'}
         book={selected}
         onClose={() => setSelected(null)}
         onRename={async (title) => {
@@ -178,7 +186,8 @@ export default function LibraryScreen() {
 
 const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700' },
+  title: { fontSize: 28, fontWeight: '700', flex: 1 },
+  gear: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   importBtn: { minHeight: 44, minWidth: 96, borderRadius: 22, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   search: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 14, height: 46, fontSize: 15 },
   chips: { gap: 8, paddingVertical: 12 },

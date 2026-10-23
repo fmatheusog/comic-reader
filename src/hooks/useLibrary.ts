@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { listBooks, listContinueReading, type Book, type Filter, type SortKey } from '@/db/books';
 
@@ -15,9 +15,6 @@ export function useLibrary(search: string, filter: Filter, sort: SortKey) {
     setLoaded(true);
   }, [search, filter, sort]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   // ao voltar do leitor o progresso mudou
   useFocusEffect(

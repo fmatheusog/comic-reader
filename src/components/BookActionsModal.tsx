@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,13 +19,8 @@ export function BookActionsModal({ book, onClose, onRename, onToggleRead, onDele
   const insets = useSafeAreaInsets();
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(book?.title ?? '');
 
-  useEffect(() => {
-    setRenaming(false);
-    setConfirmDelete(false);
-    setTitle(book?.title ?? '');
-  }, [book]);
 
   const action = (label: string, onPress: () => void, danger = false) => (
     <Pressable key={label} onPress={onPress} accessibilityRole="button" style={styles.action}>
