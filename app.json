@@ -34,7 +34,7 @@
       "react-native-blob-util"
     ],
     "experiments": {
-      "typedRoutes": true,
+      "typedRoutes": false,
       "reactCompiler": true
     }
   }
