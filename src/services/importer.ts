@@ -4,6 +4,7 @@ import { File } from 'expo-file-system';
 import { deleteBookRow, insertBook, type BookFormat } from '@/db/books';
 
 import { extractCbz } from './cbz';
+import { createPdfCover } from './pdf';
 import { bookDir, newId, removeBookFiles } from './storage';
 
 export type ImportOutcome = { name: string; ok: boolean; error?: string };
@@ -67,6 +68,8 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
       // as páginas já estão extraídas; o arquivo original só ocuparia espaço em dobro
       original.delete();
     }
+
+    if (format === 'pdf') coverPath = await createPdfCover(id, original.uri);
 
     await insertBook({ id, title, author, format, coverPath, rtl, pageCount });
     return { name, ok: true };

@@ -24,4 +24,11 @@ export const t = {
   percentRead: (p: number) => `${Math.round(p * 100)}%`,
   formats: { epub: 'EPUB', cbz: 'CBZ', pdf: 'PDF' },
   close: 'Fechar',
+  back: 'Voltar',
+  progress: 'Progresso da leitura',
+  pageOf: (n: number, total: number) => `${n} / ${total}`,
+  mangaMode: 'Mangá ←',
+  twoPages: '2 páginas',
+  loadError: 'Não foi possível abrir este livro.',
+  notFound: 'Livro não encontrado.',
 };
