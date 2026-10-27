@@ -115,5 +115,5 @@ importa outra.
 
 - Sem DRM: arquivos protegidos não abrem.
 - Links externos dentro de EPUBs são ignorados (o app é offline).
-- O zoom do CBZ é centrado (não segue o ponto da pinça) e, com zoom ativo, a troca de página é por toque duplo para sair do zoom.
+- Com zoom ativo no CBZ, a troca de página só volta depois de sair do zoom (toque duplo).
 - Ícone e splash ainda são os do template do Expo.
