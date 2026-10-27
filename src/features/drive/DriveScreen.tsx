@@ -51,6 +51,7 @@ export default function DriveScreen() {
   const [root, setRoot] = useState<CatalogRoot | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [crawling, setCrawling] = useState<{ folders: number; files: number } | null>(null);
+  const [crawlSeconds, setCrawlSeconds] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
 
@@ -68,11 +69,13 @@ export default function DriveScreen() {
     abort.current = controller;
     setError(null);
     setCrawling({ folders: 0, files: 0 });
+    const startedAt = Date.now();
     try {
       const tree = await crawlFolder(target, (folders, files) => setCrawling({ folders, files }), controller.signal);
       const next: Catalog = { builtAt: Date.now(), works: buildWorks(tree) };
       await saveCatalog(next);
       setCatalog(next);
+      setCrawlSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
     } catch (e) {
       if (errorText(e) !== 'cancelado') setError(errorText(e));
     } finally {
@@ -230,7 +233,7 @@ export default function DriveScreen() {
     );
   } else if (!root) {
     body = <FolderPicker account={account.email} onPick={pickRoot} />;
-  } else if (crawling) {
+  } else if (crawling && !catalog) {
     body = (
       <View style={styles.center}>
         <ActivityIndicator color={theme.accent} />
@@ -278,8 +281,17 @@ export default function DriveScreen() {
               {categories.length > 0 && works.some((w) => !w.category) && chip(t.drive.otherCategory, category === '', () => setCategory(''))}
             </ScrollView>
             <Text style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>
-              {t.drive.summary(works.length, works.reduce((n, w) => n + w.files.length, 0), new Date(catalog.builtAt).toLocaleDateString('pt-BR'))}
+              {t.drive.summary(works.length, works.reduce((n, w) => n + w.files.length, 0), new Date(catalog.builtAt).toLocaleDateString('pt-BR'), crawlSeconds)}
             </Text>
+            {crawling && (
+              <View style={styles.refreshing}>
+                <ActivityIndicator color={theme.accent} />
+                <Text style={{ color: theme.textMuted, flex: 1, fontSize: 12 }}>{t.drive.refreshing(crawling.folders, crawling.files)}</Text>
+                <Pressable onPress={() => abort.current?.abort()} accessibilityRole="button" style={styles.textBtn}>
+                  <Text style={{ color: theme.text, fontWeight: '600' }}>{t.drive.cancel}</Text>
+                </Pressable>
+              </View>
+            )}
             {error && <Text style={styles.error}>{error}</Text>}
             {importer.status && <Text style={{ color: theme.textMuted, marginBottom: 8 }}>{importer.status}</Text>}
           </View>
@@ -353,6 +365,7 @@ const styles = StyleSheet.create({
   error: { color: '#D93025', textAlign: 'center', marginBottom: 8 },
   search: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 14, height: 46, fontSize: 15 },
   chips: { gap: 8, paddingVertical: 12 },
+  refreshing: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
 });

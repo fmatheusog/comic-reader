@@ -10,6 +10,7 @@ export type DriveFile = {
   name: string;
   mimeType: string;
   size?: string;
+  parents?: string[];
   shortcutDetails?: { targetId: string; targetMimeType: string };
 };
 
@@ -46,8 +47,23 @@ export const LIST_FIELDS = 'nextPageToken,files(id,name,mimeType,size,shortcutDe
 
 const quote = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
+/** Como LIST_FIELDS, mas com as pastas pai, para ligar cada item à sua pasta numa consulta em lote. */
+export const LIST_FIELDS_WITH_PARENTS =
+  'nextPageToken,files(id,name,mimeType,size,parents,shortcutDetails(targetId,targetMimeType))';
+
 export const QUERY_SHARED = 'sharedWithMe = true and trashed = false';
 export const queryChildren = (folderId: string) => `'${quote(folderId)}' in parents and trashed = false`;
+
+/** Conteúdo de várias pastas numa consulta só (a API aceita vários `in parents` ligados por `or`). */
+export const queryChildrenOf = (folderIds: string[]) =>
+  `(${folderIds.map((id) => `'${quote(id)}' in parents`).join(' or ')}) and trashed = false`;
+
+/** Divide em lotes de tamanho fixo. */
+export function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 /**
  * Converte um item da API numa entrada: pastas, e arquivos EPUB/PDF/CBZ.

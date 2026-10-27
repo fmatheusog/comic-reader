@@ -5,9 +5,12 @@ import { t } from '@/shared/i18n/pt';
 import { getAccessToken } from './auth';
 import {
   LIST_FIELDS,
+  LIST_FIELDS_WITH_PARENTS,
+  chunk,
   classifyDriveError,
   QUERY_SHARED,
   queryChildren,
+  queryChildrenOf,
   sortEntries,
   toEntry,
   type DriveEntry,
@@ -95,10 +98,46 @@ export const listSharedWithMe = () => listQuery(QUERY_SHARED);
 /** Conteúdo de uma pasta; 'root' é o "Meu Drive". */
 export const listFolder = (folderId: string) => listQuery(queryChildren(folderId));
 
-const WAVE = 5; // pastas lidas ao mesmo tempo
+const FOLDERS_PER_QUERY = 20; // pastas lidas por consulta
+const PARALLEL_QUERIES = 6; // consultas ao mesmo tempo
+
+/** Executa `fn` para cada item com no máximo `limit` em andamento, sem esperar o mais lento de cada grupo. */
+async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await fn(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
+/** Itens diretamente dentro de várias pastas, cada um ligado à pasta onde está. */
+async function listChildrenBatch(folderIds: string[]): Promise<{ parent: string; entry: DriveEntry }[]> {
+  const wanted = new Set(folderIds);
+  const out: { parent: string; entry: DriveEntry }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: queryChildrenOf(folderIds),
+      fields: LIST_FIELDS_WITH_PARENTS,
+      pageSize: '1000',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const body = await fetchPage(`${BASE}/files?${params}`);
+    for (const f of body.files ?? []) {
+      const entry = toEntry(f);
+      if (!entry) continue;
+      for (const parent of f.parents ?? []) if (wanted.has(parent)) out.push({ parent, entry });
+    }
+    pageToken = body.nextPageToken;
+  } while (pageToken);
+  return out;
+}
 
 /**
- * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas).
+ * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas), nível por nível:
+ * cada consulta traz o conteúdo de até 20 pastas e várias consultas rodam juntas.
  * Só lê; devolve a árvore para `buildWorks` transformar em obras.
  */
 export async function crawlFolder(
@@ -113,28 +152,27 @@ export async function crawlFolder(
   let files = 0;
 
   while (frontier.length) {
+    const byId = new Map(frontier.map((n) => [n.id, n]));
     const next: DriveNode[] = [];
-    for (let i = 0; i < frontier.length; i += WAVE) {
+    await mapLimit(chunk(frontier, FOLDERS_PER_QUERY), PARALLEL_QUERIES, async (batch) => {
       if (signal?.aborted) throw new Error('cancelado');
-      await Promise.all(
-        frontier.slice(i, i + WAVE).map(async (node) => {
-          for (const e of await listFolder(node.id)) {
-            if (e.kind === 'folder') {
-              if (seen.has(e.id)) continue;
-              seen.add(e.id);
-              const child: DriveNode = { id: e.id, name: e.name, files: [], children: [] };
-              node.children.push(child);
-              next.push(child);
-            } else {
-              node.files.push({ id: e.id, name: e.name, format: e.format, size: e.size });
-              files++;
-            }
-          }
-          folders++;
-          onProgress(folders, files);
-        }),
-      );
-    }
+      for (const { parent, entry } of await listChildrenBatch(batch.map((n) => n.id))) {
+        const node = byId.get(parent);
+        if (!node) continue;
+        if (entry.kind === 'folder') {
+          if (seen.has(entry.id)) continue;
+          seen.add(entry.id);
+          const child: DriveNode = { id: entry.id, name: entry.name, files: [], children: [] };
+          node.children.push(child);
+          next.push(child);
+        } else {
+          node.files.push({ id: entry.id, name: entry.name, format: entry.format, size: entry.size });
+          files++;
+        }
+      }
+      folders += batch.length;
+      onProgress(folders, files);
+    });
     frontier = next;
   }
   return rootNode;
@@ -161,8 +199,8 @@ export async function downloadFile(
   const dest = new File(dir, `${file.id}-${file.name.replace(/[^\w.-]+/g, '_')}`);
   if (dest.exists) dest.delete();
 
-  // token novo a cada arquivo: um lote grande dura mais que a vida de um token (1 h)
-  const token = await getAccessToken(true);
+  // o token em memória é renovado sozinho antes de vencer, mesmo em lotes longos
+  const token = await getAccessToken();
   const task = File.createDownloadTask(`${BASE}/files/${encodeURIComponent(file.id)}?alt=media&supportsAllDrives=true`, dest, {
     headers: { Authorization: `Bearer ${token}` }, // o token vai só no cabeçalho, nunca na URL
     onProgress: ({ bytesWritten, totalBytes }) => onProgress(bytesWritten, totalBytes),

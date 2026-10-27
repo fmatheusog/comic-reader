@@ -12,7 +12,9 @@ export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 export type DriveAccount = { email: string; name: string | null };
 
 let configured = false;
+const TOKEN_TTL_MS = 40 * 60 * 1000; // o token dura ~1 h; renovamos antes
 let cachedToken: string | null = null;
+let cachedAt = 0;
 
 // No Android o cliente OAuth é identificado pelo pacote e pelo SHA-1 da chave de assinatura,
 // então não há ID de cliente nem segredo no código.
@@ -68,19 +70,23 @@ export async function signIn(): Promise<DriveAccount | null> {
 export async function signOut() {
   ensureConfigured();
   cachedToken = null;
+  cachedAt = 0;
   await GoogleSignin.signOut();
 }
 
 /**
- * Token de acesso (vale cerca de 1 hora). Com `fresh`, descarta o que a biblioteca guardou e
- * pede outro, para não usar um token vencido.
+ * Token de acesso (vale cerca de 1 hora). Fica em memória por 40 minutos, para não chamar o
+ * Google Play Services a cada requisição. Com `fresh` (ou vencido), descarta o que a biblioteca
+ * guardou e pede outro.
  */
 export async function getAccessToken(fresh = false): Promise<string> {
   ensureConfigured();
+  if (!fresh && cachedToken && Date.now() - cachedAt < TOKEN_TTL_MS) return cachedToken;
   try {
-    if (fresh && cachedToken) await GoogleSignin.clearCachedAccessToken(cachedToken);
+    if (cachedToken) await GoogleSignin.clearCachedAccessToken(cachedToken);
     const { accessToken } = await GoogleSignin.getTokens();
     cachedToken = accessToken;
+    cachedAt = Date.now();
     return accessToken;
   } catch (e) {
     throw friendlyError(e);

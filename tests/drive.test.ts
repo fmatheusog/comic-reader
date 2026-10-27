@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorks, classifyDriveError, formatBytes, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
+import { buildWorks, chunk, classifyDriveError, formatBytes, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, queryChildrenOf, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
 
 test('pastas e arquivos suportados viram entradas', () => {
   assert.deepEqual(toEntry({ id: '1', name: 'Obra', mimeType: 'application/vnd.google-apps.folder' }), {
@@ -132,4 +132,10 @@ test('classifica erros da Drive API pelo motivo, sem depender do texto', () => {
   const disabled = JSON.stringify({ error: { message: 'Google Drive API has not been used in project 123456789012 before or it is disabled.', errors: [{ reason: 'accessNotConfigured' }] } });
   assert.equal(classifyDriveError(403, disabled).project, '123456789012');
   assert.equal(classifyDriveError(500, '').kind, 'http');
+});
+
+test('consulta em lote junta várias pastas com or e divide em lotes', () => {
+  assert.equal(queryChildrenOf(['a', "b'c"]), "('a' in parents or 'b\\'c' in parents) and trashed = false");
+  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunk([], 3), []);
 });
