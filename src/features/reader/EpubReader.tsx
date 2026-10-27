@@ -7,16 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView as BaseWebView, type WebViewMessageEvent, type WebViewProps } from 'react-native-webview';
 
 import type { Book } from '@/entities/book/db';
-import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
-import { t } from '@/shared/i18n/pt';
 import { loadEpub, readChapter, spineIndexOf, type EpubBook } from '@/entities/book/formats/epub';
 import { buildChapterHtml, readerCss } from '@/entities/book/formats/epubHtml';
 import { dirOf, resolveHref } from '@/entities/book/formats/epubParse';
+import { locate, overallProgress } from '@/entities/book/formats/epubProgress';
+import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
+import { t } from '@/shared/i18n/pt';
+import { ReadingSettingsSheet } from '@/shared/settings/ReadingSettingsSheet';
 import { useSettings } from '@/shared/settings/store';
 import { useAppTheme } from '@/shared/theme';
 
-import { ChromeButton, ReaderChrome } from './ReaderChrome';
-import { ReadingSettingsSheet } from '@/shared/settings/ReadingSettingsSheet';
+import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 
 // os tipos do react-native-webview 14 não declaram o ref que o componente aceita em runtime
 type WebViewHandle = { injectJavaScript: (script: string) => void };
@@ -24,6 +25,8 @@ const WebView = BaseWebView as unknown as ComponentType<WebViewProps & { ref?: R
 
 type Pos = { chapter: number; ratio: number };
 type Source = { html: string; baseUrl: string; key: string };
+
+const HISTORY_LIMIT = 20;
 
 export function EpubReader({ book }: { book: Book }) {
   useKeepAwake();
@@ -34,6 +37,7 @@ export function EpubReader({ book }: { book: Book }) {
 
   const [epub, setEpub] = useState<EpubBook | null>(null);
   const [error, setError] = useState(false);
+  const [chapterError, setChapterError] = useState(false);
   const saved = parsePosition<Pos>(book.position);
   const [pos, setPos] = useState<Pos>({ chapter: saved?.chapter ?? 0, ratio: saved?.ratio ?? 0 });
   const [source, setSource] = useState<Source | null>(null);
@@ -41,29 +45,46 @@ export function EpubReader({ book }: { book: Book }) {
   const [controls, setControls] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // de onde você veio ao seguir um link ou pular pelo sumário/barra
+  const [history, setHistory] = useState<Pos[]>([]);
+
+  // margem do topo estável: a barra de status some e volta, e o texto não deve pular junto
+  const [topPad, setTopPad] = useState(0);
+  if (insets.top > topPad) setTopPad(insets.top);
 
   // posição a restaurar quando o capítulo carregar (não muda a cada rolagem)
   const pendingRestore = useRef<{ ratio: number; anchor?: string }>({ ratio: saved?.ratio ?? 0 });
-  const latest = useRef({ settings, theme });
+  const latest = useRef({ settings, theme, pos });
   useEffect(() => {
-    latest.current = { settings, theme };
+    latest.current = { settings, theme, pos };
   });
+  // só a abertura mais recente vale: trocar de capítulo rápido não deixa um antigo sobrescrever o novo
+  const request = useRef(0);
 
   const total = epub?.pkg.spine.length ?? 0;
-  useSaveProgress(book.id, total ? (pos.chapter + pos.ratio) / total : 0, pos, !!epub && ready);
+  const progress = epub ? overallProgress(epub.sizes, pos.chapter, pos.ratio) : 0;
+  useSaveProgress(book.id, progress, pos, !!epub && ready);
 
   const openChapterIn = useCallback(
     async (eb: EpubBook, index: number, ratio = 0, anchor?: string) => {
+      const id = ++request.current;
       const i = Math.min(Math.max(index, 0), eb.pkg.spine.length - 1);
       setReady(false);
+      setChapterError(false);
       pendingRestore.current = { ratio, anchor };
       setPos({ chapter: i, ratio });
       try {
         const c = await readChapter(book.id, eb, i);
+        if (id !== request.current) return;
         const css = readerCss(latest.current.settings, latest.current.theme);
         setSource({ html: buildChapterHtml(c, css), baseUrl: c.baseUrl, key: `${i}-${Date.now()}` });
       } catch {
-        setError(true);
+        if (id !== request.current) return;
+        // um capítulo ruim não derruba o livro: avisa e deixa os controles à mão para seguir
+        setSource(null);
+        setChapterError(true);
+        setReady(true);
+        setControls(true);
       }
     },
     [book.id],
@@ -71,6 +92,19 @@ export function EpubReader({ book }: { book: Book }) {
 
   const openChapter = (index: number, ratio = 0, anchor?: string) => {
     if (epub) openChapterIn(epub, index, ratio, anchor);
+  };
+
+  /** Abre outro ponto do livro guardando o lugar atual para o botão Voltar. */
+  const jump = (index: number, ratio = 0, anchor?: string) => {
+    setHistory((h) => [...h.slice(-(HISTORY_LIMIT - 1)), latest.current.pos]);
+    openChapter(index, ratio, anchor);
+  };
+
+  const goBack = () => {
+    const prev = history[history.length - 1];
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    openChapter(prev.chapter, prev.ratio);
   };
 
   useEffect(() => {
@@ -123,7 +157,7 @@ export function EpubReader({ book }: { book: Book }) {
           ? epub.pkg.spine[pos.chapter] + href
           : resolveHref(dirOf(epub.pkg.spine[pos.chapter]), href);
         const idx = spineIndexOf(epub, target);
-        if (idx >= 0) openChapter(idx, 0, target.includes('#') ? target.split('#')[1] : undefined);
+        if (idx >= 0) jump(idx, 0, target.includes('#') ? target.split('#')[1] : undefined);
         break;
       }
     }
@@ -147,7 +181,7 @@ export function EpubReader({ book }: { book: Book }) {
         <WebView
           key={source.key}
           ref={web}
-          style={[styles.web, { opacity: ready ? 1 : 0, backgroundColor: theme.background, marginTop: controls ? 0 : insets.top }]}
+          style={[styles.web, { opacity: ready ? 1 : 0, backgroundColor: theme.background, marginTop: topPad }]}
           source={{ html: source.html, baseUrl: source.baseUrl }}
           originWhitelist={['*']}
           javaScriptEnabled
@@ -163,18 +197,35 @@ export function EpubReader({ book }: { book: Book }) {
           onShouldStartLoadWithRequest={(r) => r.url.startsWith(source.baseUrl) || r.url === 'about:blank'}
         />
       )}
-      {!ready && !error && (
+      {!ready && (
         <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
           <ActivityIndicator color={theme.accent} />
         </View>
       )}
+      {chapterError && (
+        <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
+          <Text style={{ color: theme.text }}>{t.chapterError}</Text>
+        </View>
+      )}
       <ReaderChrome visible={controls} title={`${book.title} · ${chapterTitle}`} onBack={() => router.back()}>
+        <SeekBar
+          value={progress}
+          onSeek={(f) => {
+            if (!epub) return;
+            const target = locate(epub.sizes, f);
+            jump(target.chapter, target.ratio);
+          }}
+        />
         <View style={styles.row}>
           <ChromeButton label="‹" onPress={() => openChapter(pos.chapter - 1)} />
           <Text style={styles.counter} accessibilityLabel={`${t.chapter(pos.chapter + 1)} / ${total}`}>
             {pos.chapter + 1} / {total}
           </Text>
           <ChromeButton label="›" onPress={() => openChapter(pos.chapter + 1)} />
+          <Text style={styles.percent} accessibilityLabel={t.progress}>
+            {Math.round(progress * 100)}%
+          </Text>
+          {history.length > 0 && <ChromeButton label={t.backToPrev} onPress={goBack} />}
           <View style={{ flex: 1 }} />
           <ChromeButton label={t.toc} onPress={() => setShowToc(true)} />
           <ChromeButton label={t.textSettings} onPress={() => setShowSettings(true)} />
@@ -191,7 +242,7 @@ export function EpubReader({ book }: { book: Book }) {
           setControls(false);
           if (epub) {
             const idx = spineIndexOf(epub, href);
-            if (idx >= 0) openChapter(idx, 0, href.includes('#') ? href.split('#')[1] : undefined);
+            if (idx >= 0) jump(idx, 0, href.includes('#') ? href.split('#')[1] : undefined);
           }
         }}
       />
@@ -219,6 +270,8 @@ function TocModal({
     epub && epub.toc.length > 0
       ? epub.toc
       : (epub?.pkg.spine ?? []).map((href, i) => ({ title: t.chapter(i + 1), href, depth: 0 }));
+  // várias entradas podem apontar para o mesmo arquivo (âncoras); destaca só a primeira
+  const activeIndex = epub ? entries.findIndex((e) => spineIndexOf(epub, e.href) === current) : -1;
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: insets.top + 8 }}>
@@ -234,12 +287,13 @@ function TocModal({
           data={entries}
           keyExtractor={(e, i) => `${i}-${e.href}`}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-          renderItem={({ item }) => {
-            const active = !!epub && spineIndexOf(epub, item.href) === current;
+          renderItem={({ item, index }) => {
+            const active = index === activeIndex;
             return (
               <Pressable
                 onPress={() => onPick(item.href)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 style={[styles.tocItem, { paddingLeft: 20 + item.depth * 18, borderColor: theme.border }]}>
                 <Text style={{ color: active ? theme.accent : theme.text, fontWeight: active ? '700' : '400', fontSize: 16 }}>
                   {item.title}
@@ -257,8 +311,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   web: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   counter: { color: '#fff', fontVariant: ['tabular-nums'], minWidth: 56, textAlign: 'center' },
+  percent: { color: 'rgba(255,255,255,0.7)', fontVariant: ['tabular-nums'], fontSize: 13, minWidth: 40, textAlign: 'center' },
   tocHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 8 },
   tocTitle: { fontSize: 22, fontWeight: '700' },
   tocClose: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },

@@ -18,6 +18,8 @@ export type EpubBook = {
   rootUri: string;
   pkg: EpubPackage;
   toc: TocEntry[];
+  /** Tamanho em bytes de cada capítulo da spine, para ponderar o progresso */
+  sizes: number[];
 };
 
 const epubRoot = (id: string) => new Directory(bookDir(id), 'epub');
@@ -46,7 +48,14 @@ export async function loadEpub(id: string): Promise<EpubBook> {
     }
   }
   if (pkg.spine.length === 0) throw new Error('EPUB sem capítulos');
-  return { rootUri: root.uri.replace(/\/?$/, '/'), pkg, toc };
+  const sizes = pkg.spine.map((path) => {
+    try {
+      return fileIn(id, path).size || 1;
+    } catch {
+      return 1;
+    }
+  });
+  return { rootUri: root.uri.replace(/\/?$/, '/'), pkg, toc, sizes };
 }
 
 export type ImportedEpubMeta = {

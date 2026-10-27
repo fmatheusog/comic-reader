@@ -93,6 +93,16 @@ export function TextSettingsControls() {
         value={s.fontFamily}
         onChange={(v) => set({ fontFamily: v })}
       />
+      <Text style={styles.sectionLabel}>{t.align}</Text>
+      <ChipRow
+        options={[
+          { value: 'original', label: t.alignOriginal },
+          { value: 'left', label: t.alignLeft },
+          { value: 'justify', label: t.alignJustify },
+        ]}
+        value={s.textAlign}
+        onChange={(v) => set({ textAlign: v })}
+      />
       <Stepper
         label={t.fontSize}
         value={`${s.fontSize}`}

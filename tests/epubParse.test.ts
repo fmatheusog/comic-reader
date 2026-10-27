@@ -13,6 +13,8 @@ import {
   sanitizeChapter,
   splitChapter,
 } from '../src/entities/book/formats/epubParse.ts';
+import { buildChapterHtml, makeNonce, readerCss } from '../src/entities/book/formats/epubHtml.ts';
+import { locate, overallProgress } from '../src/entities/book/formats/epubProgress.ts';
 
 const png = Buffer.from('89504e470d0a1a0a', 'hex');
 
@@ -60,4 +62,36 @@ test('sanitizeChapter remove scripts e handlers; splitChapter mantém CSS e corp
   assert.match(head, /estilo\.css/);
   assert.match(body, /Capítulo 1/);
   assert.ok(!/<body/i.test(body));
+});
+
+test('progresso ponderado pelo tamanho dos capítulos e operação inversa', () => {
+  const sizes = [100, 900, 0]; // o último vale 1 (mínimo)
+  assert.equal(overallProgress(sizes, 0, 0), 0);
+  assert.ok(Math.abs(overallProgress(sizes, 0, 1) - 100 / 1001) < 1e-9);
+  assert.ok(Math.abs(overallProgress(sizes, 1, 0.5) - 550 / 1001) < 1e-9);
+  assert.equal(overallProgress(sizes, 2, 1), 1);
+  assert.equal(overallProgress([], 0, 0), 0);
+  // locate é a inversa de overallProgress
+  const there = locate(sizes, 550 / 1001);
+  assert.equal(there.chapter, 1);
+  assert.ok(Math.abs(there.ratio - 0.5) < 1e-9);
+  assert.deepEqual(locate(sizes, 0), { chapter: 0, ratio: 0 });
+  assert.equal(locate(sizes, 1).chapter, 2);
+  assert.deepEqual(locate([], 0.5), { chapter: 0, ratio: 0 });
+});
+
+test('capítulo carrega com CSP: só o script do leitor (nonce), sem rede', () => {
+  const settings = { fontFamily: 'serif', fontSize: 18, lineHeight: 1.6, margin: 20, textAlign: 'original' } as never;
+  const theme = { background: '#fff', text: '#000', accent: '#00f' } as never;
+  const css = readerCss(settings, theme);
+  const html = buildChapterHtml({ baseUrl: 'file:///x/', head: '', body: '<p>oi</p>' }, css, 'abc123');
+  assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /script-src 'nonce-abc123'/);
+  assert.match(html, /<script nonce="abc123">/);
+  assert.match(html, /default-src 'none'/);
+  assert.match(html, /connect-src 'none'/);
+  assert.ok(!/img-src[^;]*https?:/.test(html), 'imagens só locais');
+  assert.ok(makeNonce().length >= 16 && makeNonce() !== makeNonce());
+  assert.ok(!/text-align/.test(css), 'alinhamento original não força nada');
+  assert.match(readerCss({ ...settings, textAlign: 'justify' }, theme), /text-align: justify !important/);
 });

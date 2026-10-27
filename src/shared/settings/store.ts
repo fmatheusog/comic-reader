@@ -14,6 +14,8 @@ export type Settings = {
   margin: number;
   /** duas páginas lado a lado com o aparelho deitado */
   dualPage: boolean;
+  /** EPUB: alinhamento do texto; 'original' respeita o estilo do livro */
+  textAlign: 'original' | 'left' | 'justify';
   /** PDF: 'page' mostra a página inteira; 'width' ocupa toda a largura (a página rola na vertical) */
   pdfFit: 'page' | 'width';
 };
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   margin: 20,
   dualPage: true,
   pdfFit: 'page',
+  textAlign: 'original',
 };
 
 let current: Settings = DEFAULT_SETTINGS;
