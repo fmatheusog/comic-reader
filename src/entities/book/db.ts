@@ -182,6 +182,17 @@ export async function renameSeries(from: string, to: string) {
   await db.runAsync('UPDATE books SET series = ? WHERE series = ? COLLATE NOCASE', to.trim(), from);
 }
 
+/** Marca todos os capítulos da obra como lidos ou volta todos para não lidos (zera o progresso). */
+export async function setSeriesFinished(series: string, finished: boolean) {
+  const db = await getDb();
+  await db.runAsync(
+    finished
+      ? 'UPDATE books SET finished = 1, progress = 1 WHERE series = ? COLLATE NOCASE'
+      : 'UPDATE books SET finished = 0, progress = 0, position = NULL, last_read_at = NULL WHERE series = ? COLLATE NOCASE',
+    series,
+  );
+}
+
 /** Livros que ainda não passaram pela detecção de obra. */
 export async function listBooksWithoutSeries(): Promise<Pick<Book, 'id' | 'title'>[]> {
   const db = await getDb();

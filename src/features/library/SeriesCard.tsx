@@ -6,9 +6,9 @@ import { resolveUri } from '@/entities/book/storage';
 import { t } from '@/shared/i18n/pt';
 import { useAppTheme } from '@/shared/theme';
 
-type Props = { group: SeriesGroup; width: number; onPress: () => void };
+type Props = { group: SeriesGroup; width: number; onPress: () => void; onLongPress: () => void };
 
-export function SeriesCard({ group, width, onPress }: Props) {
+export function SeriesCard({ group, width, onPress, onLongPress }: Props) {
   const theme = useAppTheme();
   const height = Math.round(width * 1.45);
   const cover = group.books.find((b) => b.coverPath)?.coverPath;
@@ -16,9 +16,10 @@ export function SeriesCard({ group, width, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       accessibilityRole="button"
       accessibilityLabel={`${group.name}, ${t.chapters(group.books.length)}`}
-      accessibilityHint="Toque para ver os capítulos."
+      accessibilityHint="Toque para ver os capítulos. Toque e segure para mais ações."
       style={{ width }}>
       <View style={[styles.cover, { width, height, backgroundColor: theme.surface, borderColor: theme.border }]}>
         {cover ? (

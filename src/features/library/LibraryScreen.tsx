@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookActionsModal } from '@/entities/book/ui/BookActionsModal';
 import { BookCard } from '@/entities/book/ui/BookCard';
+import { SeriesManager } from '@/entities/book/ui/SeriesManager';
+import type { SeriesGroup } from '@/entities/book/group';
 import { SeriesCard } from './SeriesCard';
 import { BookEditModal } from '@/entities/book/ui/BookEditModal';
 import { deleteBookRow, setFinished, updateBookInfo, type Book, type Filter, type SortKey } from '@/entities/book/db';
@@ -38,6 +40,7 @@ export default function LibraryScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
   const [selected, setSelected] = useState<Book | null>(null);
+  const [managing, setManaging] = useState<SeriesGroup | null>(null);
   const [editing, setEditing] = useState<Book | null>(null);
   const [importing, setImporting] = useState(false);
   const [reviewing, setReviewing] = useState<ImportDraft[] | null>(null);
@@ -175,7 +178,7 @@ export default function LibraryScreen() {
         columnWrapperStyle={{ gap: GAP }}
         renderItem={({ item }) =>
           item.kind === 'series' ? (
-            <SeriesCard group={item} width={cardWidth} onPress={() => router.push(`/series/${encodeURIComponent(item.name)}`)} />
+            <SeriesCard group={item} width={cardWidth} onPress={() => router.push(`/series/${encodeURIComponent(item.name)}`)} onLongPress={() => setManaging(item)} />
           ) : (
             <BookCard book={item.book} width={cardWidth} onPress={() => open(item.book)} onLongPress={() => setSelected(item.book)} />
           )
@@ -221,6 +224,25 @@ export default function LibraryScreen() {
             await deleteBookRow(selected.id);
           }
           setSelected(null);
+          refresh();
+        }}
+      />
+
+      <SeriesManager
+        key={`manage-${managing?.key ?? 'none'}`}
+        series={managing?.name ?? null}
+        count={managing?.books.length ?? 0}
+        onClose={() => setManaging(null)}
+        onChanged={() => {
+          setManaging(null);
+          refresh();
+        }}
+        onRenamed={() => {
+          setManaging(null);
+          refresh();
+        }}
+        onDeleted={() => {
+          setManaging(null);
           refresh();
         }}
       />

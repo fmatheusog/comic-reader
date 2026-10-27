@@ -32,6 +32,12 @@ export const t = {
   continueSeries: 'Continuar',
   startSeries: 'Começar',
   renameSeries: 'Renomear obra',
+  markSeriesRead: 'Marcar obra como lida',
+  markSeriesUnread: 'Marcar obra como não lida',
+  deleteSeries: 'Excluir obra',
+  deleteSeriesBody: (name: string, n: number) =>
+    `Os ${n} capítulo(s) de "${name}" serão removidos do aparelho. Esta ação não pode ser desfeita.`,
+  seriesActions: 'Ações da obra',
   renameSeriesBody: 'O novo nome vale para todos os capítulos. Usar o nome de outra obra junta as duas.',
   seriesEmpty: 'Esta obra não tem capítulos.',
   markRead: 'Marcar como lido',

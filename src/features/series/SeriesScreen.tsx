@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   deleteBookRow,
   listSeriesBooks,
-  renameSeries,
   setFinished,
   updateBookInfo,
   type Book,
@@ -16,10 +15,10 @@ import { resumeChapter } from '@/entities/book/group';
 import { removeBookFiles, resolveUri } from '@/entities/book/storage';
 import { BookActionsModal } from '@/entities/book/ui/BookActionsModal';
 import { BookEditModal } from '@/entities/book/ui/BookEditModal';
+import { SeriesManager } from '@/entities/book/ui/SeriesManager';
 import { t } from '@/shared/i18n/pt';
 import { useAppTheme } from '@/shared/theme';
 
-import { RenameSeriesModal } from './RenameSeriesModal';
 
 export default function SeriesScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
@@ -30,7 +29,7 @@ export default function SeriesScreen() {
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Book | null>(null);
   const [editing, setEditing] = useState<Book | null>(null);
-  const [renaming, setRenaming] = useState(false);
+  const [managing, setManaging] = useState(false);
 
   const refresh = useCallback(async () => {
     setBooks(await listSeriesBooks(name));
@@ -61,9 +60,9 @@ export default function SeriesScreen() {
           {name}
         </Text>
         <Pressable
-          onPress={() => setRenaming(true)}
+          onPress={() => setManaging(true)}
           accessibilityRole="button"
-          accessibilityLabel={t.renameSeries}
+          accessibilityLabel={t.seriesActions}
           style={styles.iconBtn}>
           <Text style={{ color: theme.text, fontSize: 20 }}>✎</Text>
         </Pressable>
@@ -161,15 +160,22 @@ export default function SeriesScreen() {
         }}
       />
 
-      <RenameSeriesModal
-        key={`${name}-${renaming}`}
-        visible={renaming}
-        name={name}
-        onClose={() => setRenaming(false)}
-        onSave={async (newName) => {
-          await renameSeries(name, newName);
-          setRenaming(false);
+      <SeriesManager
+        key={`manage-${name}-${managing}`}
+        series={managing ? name : null}
+        count={books.length}
+        onClose={() => setManaging(false)}
+        onChanged={() => {
+          setManaging(false);
+          refresh();
+        }}
+        onRenamed={(newName) => {
+          setManaging(false);
           router.setParams({ name: newName });
+        }}
+        onDeleted={() => {
+          setManaging(false);
+          router.back();
         }}
       />
     </View>
