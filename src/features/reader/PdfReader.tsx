@@ -8,6 +8,7 @@ import Pdf, { type PdfRef } from 'react-native-pdf';
 import { setRtl as saveRtl, updateBookMeta, type Book } from '@/entities/book/db';
 import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
 import { t } from '@/shared/i18n/pt';
+import { updateSettings, useSettings } from '@/shared/settings/store';
 import { resolveUri } from '@/entities/book/storage';
 
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
@@ -15,7 +16,9 @@ import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 export function PdfReader({ book }: { book: Book }) {
   useKeepAwake();
   const { width, height } = useWindowDimensions();
+  const { pdfFit } = useSettings();
   const pdfRef = useRef<PdfRef>(null);
+  const zoomed = useRef(false);
   const initial = parsePosition<{ page: number }>(book.position)?.page ?? 1;
   const [page, setPage] = useState(initial);
   const [total, setTotal] = useState(book.pageCount ?? 0);
@@ -32,7 +35,9 @@ export function PdfReader({ book }: { book: Book }) {
 
   const onTap = (x: number) => {
     const f = x / width;
-    if (f < 0.3) goTo(page + (rtl ? 1 : -1));
+    // com zoom, o toque nas bordas não vira a página: só mostra ou esconde os controles
+    if (zoomed.current) setControls((c) => !c);
+    else if (f < 0.3) goTo(page + (rtl ? 1 : -1));
     else if (f > 0.7) goTo(page + (rtl ? -1 : 1));
     else setControls((c) => !c);
   };
@@ -41,15 +46,21 @@ export function PdfReader({ book }: { book: Book }) {
     <View style={styles.root}>
       <StatusBar hidden={!controls} style="light" />
       <Pdf
-        key={`${width}x${height}`}
+        key={`${width}x${height}-${pdfFit}`}
         ref={pdfRef}
         source={{ uri: resolveUri(`books/${book.id}/book.pdf`), cache: false }}
-        page={page}
+        // só a página inicial: depois navegamos por pdfRef.setPage, para trocar de página não refazer o zoom
+        page={initial}
         horizontal
         enablePaging
         enableRTL={rtl}
         enableDoubleTapZoom
-        fitPolicy={2}
+        fitPolicy={pdfFit === 'width' ? 0 : 2}
+        minScale={1}
+        maxScale={4}
+        onScaleChanged={(s) => {
+          zoomed.current = s > 1.05;
+        }}
         spacing={0}
         trustAllCerts={false}
         style={styles.pdf}
@@ -72,6 +83,11 @@ export function PdfReader({ book }: { book: Book }) {
         />
         <View style={styles.row}>
           <Text style={styles.counter}>{t.pageOf(page, total)}</Text>
+          <ChromeButton
+            label={pdfFit === 'width' ? t.fitWidth : t.fitPage}
+            active={pdfFit === 'width'}
+            onPress={() => updateSettings({ pdfFit: pdfFit === 'width' ? 'page' : 'width' })}
+          />
           <ChromeButton
             label={t.mangaMode}
             active={rtl}

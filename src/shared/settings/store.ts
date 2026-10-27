@@ -14,6 +14,8 @@ export type Settings = {
   margin: number;
   /** duas páginas lado a lado com o aparelho deitado */
   dualPage: boolean;
+  /** PDF: 'page' mostra a página inteira; 'width' ocupa toda a largura (a página rola na vertical) */
+  pdfFit: 'page' | 'width';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lineHeight: 1.6,
   margin: 20,
   dualPage: true,
+  pdfFit: 'page',
 };
 
 let current: Settings = DEFAULT_SETTINGS;

@@ -75,6 +75,8 @@ export const t = {
   progress: 'Progresso da leitura',
   pageOf: (n: number, total: number) => `${n} / ${total}`,
   mangaMode: 'Mangá ←',
+  fitPage: 'Página inteira',
+  fitWidth: 'Preencher largura',
   twoPages: '2 páginas',
   loadError: 'Não foi possível abrir este livro.',
   notFound: 'Livro não encontrado.',
