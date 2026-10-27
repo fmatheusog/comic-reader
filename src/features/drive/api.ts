@@ -8,6 +8,7 @@ import {
   LIST_FIELDS_WITH_PARENTS,
   chunk,
   classifyDriveError,
+  ignoredKey,
   QUERY_SHARED,
   queryChildren,
   queryChildrenOf,
@@ -110,10 +111,21 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<v
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
 }
 
-/** Itens diretamente dentro de várias pastas, cada um ligado à pasta onde está. */
-async function listChildrenBatch(folderIds: string[]): Promise<{ parent: string; entry: DriveEntry }[]> {
+type Child = { parent: string; entry: DriveEntry };
+
+/**
+ * Itens diretamente dentro de várias pastas, cada um ligado à pasta onde está.
+ * O Drive nem sempre devolve `parents`; se algum item não puder ser ligado à sua pasta num lote
+ * com várias, lemos as pastas desse lote uma a uma (mais lento, mas sem perder nada).
+ */
+async function listChildrenBatch(
+  folderIds: string[],
+  ignored: Map<string, number>,
+): Promise<Child[]> {
   const wanted = new Set(folderIds);
-  const out: { parent: string; entry: DriveEntry }[] = [];
+  const out: Child[] = [];
+  const skipped = new Map<string, number>();
+  let unattributed = 0;
   let pageToken: string | undefined;
   do {
     const params = new URLSearchParams({
@@ -127,25 +139,40 @@ async function listChildrenBatch(folderIds: string[]): Promise<{ parent: string;
     const body = await fetchPage(`${BASE}/files?${params}`);
     for (const f of body.files ?? []) {
       const entry = toEntry(f);
-      if (!entry) continue;
-      for (const parent of f.parents ?? []) if (wanted.has(parent)) out.push({ parent, entry });
+      if (!entry) {
+        const key = ignoredKey(f);
+        skipped.set(key, (skipped.get(key) ?? 0) + 1);
+        continue;
+      }
+      let parents = (f.parents ?? []).filter((p) => wanted.has(p));
+      if (parents.length === 0 && folderIds.length === 1) parents = [folderIds[0]]; // única pasta possível
+      if (parents.length === 0) unattributed++;
+      for (const parent of parents) out.push({ parent, entry });
     }
     pageToken = body.nextPageToken;
   } while (pageToken);
+
+  if (unattributed > 0 && folderIds.length > 1) {
+    const exact: Child[] = [];
+    for (const id of folderIds) exact.push(...(await listChildrenBatch([id], ignored)));
+    return exact;
+  }
+  for (const [key, n] of skipped) ignored.set(key, (ignored.get(key) ?? 0) + n);
   return out;
 }
 
 /**
  * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas), nível por nível:
  * cada consulta traz o conteúdo de até 20 pastas e várias consultas rodam juntas.
- * Só lê; devolve a árvore para `buildWorks` transformar em obras.
+ * Só lê; devolve a árvore para `buildWorks` transformar em obras e o que foi ignorado por tipo.
  */
 export async function crawlFolder(
   root: { id: string; name: string },
   onProgress: (folders: number, files: number) => void,
   signal?: AbortSignal,
-): Promise<DriveNode> {
+): Promise<{ tree: DriveNode; ignored: Record<string, number> }> {
   const rootNode: DriveNode = { id: root.id, name: root.name, files: [], children: [] };
+  const ignored = new Map<string, number>();
   const seen = new Set([root.id]); // atalhos podem formar ciclos
   let frontier = [rootNode];
   let folders = 0;
@@ -156,7 +183,7 @@ export async function crawlFolder(
     const next: DriveNode[] = [];
     await mapLimit(chunk(frontier, FOLDERS_PER_QUERY), PARALLEL_QUERIES, async (batch) => {
       if (signal?.aborted) throw new Error('cancelado');
-      for (const { parent, entry } of await listChildrenBatch(batch.map((n) => n.id))) {
+      for (const { parent, entry } of await listChildrenBatch(batch.map((n) => n.id), ignored)) {
         const node = byId.get(parent);
         if (!node) continue;
         if (entry.kind === 'folder') {
@@ -175,7 +202,7 @@ export async function crawlFolder(
     });
     frontier = next;
   }
-  return rootNode;
+  return { tree: rootNode, ignored: Object.fromEntries(ignored) };
 }
 
 /** Apaga o que sobrou de downloads no cache (interrompidos ou cancelados). */

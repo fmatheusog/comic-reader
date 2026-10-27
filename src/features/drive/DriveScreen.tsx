@@ -71,8 +71,8 @@ export default function DriveScreen() {
     setCrawling({ folders: 0, files: 0 });
     const startedAt = Date.now();
     try {
-      const tree = await crawlFolder(target, (folders, files) => setCrawling({ folders, files }), controller.signal);
-      const next: Catalog = { builtAt: Date.now(), works: buildWorks(tree) };
+      const { tree, ignored } = await crawlFolder(target, (folders, files) => setCrawling({ folders, files }), controller.signal);
+      const next: Catalog = { builtAt: Date.now(), works: buildWorks(tree), ignored };
       await saveCatalog(next);
       setCatalog(next);
       setCrawlSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
@@ -149,6 +149,8 @@ export default function DriveScreen() {
   };
 
   const works = catalog?.works ?? [];
+  const ignoredList = Object.entries(catalog?.ignored ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const ignoredText = ignoredList.length ? t.drive.ignored(ignoredList.map(([k, n]) => `${k} (${n})`).join(', ')) : null;
   const categories = [...new Set(works.map((w) => w.category).filter((c): c is string => !!c))].sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: 'base' }),
   );
@@ -283,6 +285,7 @@ export default function DriveScreen() {
             <Text style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>
               {t.drive.summary(works.length, works.reduce((n, w) => n + w.files.length, 0), new Date(catalog.builtAt).toLocaleDateString('pt-BR'), crawlSeconds)}
             </Text>
+            {ignoredText && <Text style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>{ignoredText}</Text>}
             {crawling && (
               <View style={styles.refreshing}>
                 <ActivityIndicator color={theme.accent} />

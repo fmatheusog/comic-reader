@@ -32,7 +32,8 @@ export type Work = {
   files: CatalogFile[];
 };
 
-export type Catalog = { builtAt: number; works: Work[] };
+/** `ignored`: quantos arquivos de cada tipo foram deixados de fora por não serem EPUB, PDF ou CBZ. */
+export type Catalog = { builtAt: number; works: Work[]; ignored?: Record<string, number> };
 
 /** Arquivo a importar, com o nome da obra de origem. */
 export type RemoteFile = CatalogFile & { folderName: string };
@@ -170,6 +171,14 @@ export function classifyDriveError(
   if (status === 403) return { kind: 'forbidden', reason, project };
   if (status === 404) return { kind: 'notFound', reason, project };
   return { kind: 'http', reason, project };
+}
+
+/** Rótulo do tipo de um item ignorado: a extensão do nome (".zip") ou, sem ela, o tipo do Google. */
+export function ignoredKey(f: Pick<DriveFile, 'name' | 'mimeType'>): string {
+  const dot = f.name.lastIndexOf('.');
+  if (dot > 0 && dot < f.name.length - 1 && f.name.length - dot <= 6) return f.name.slice(dot).toLowerCase();
+  const google = 'application/vnd.google-apps.';
+  return f.mimeType.startsWith(google) ? `google/${f.mimeType.slice(google.length)}` : f.mimeType.replace(/^.*\//, '');
 }
 
 /** Aceita o link da pasta (drive.google.com/drive/folders/ID, com ou sem parâmetros) ou o próprio id. */

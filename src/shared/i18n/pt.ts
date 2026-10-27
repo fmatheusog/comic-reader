@@ -101,6 +101,7 @@ export const t = {
     otherCategory: 'Outras',
     summary: (works: number, files: number, date: string, seconds: number | null) =>
       `${works} obra(s) · ${files} arquivo(s) · atualizado em ${date}${seconds != null ? ` (lido em ${seconds} s)` : ''}`,
+    ignored: (list: string) => `Arquivos ignorados por não serem EPUB, PDF ou CBZ: ${list}.`,
     refreshing: (folders: number, files: number) => `Atualizando… ${folders} pasta(s), ${files} arquivo(s)`,
     catalogEmpty: 'Nenhuma obra com arquivos EPUB, PDF ou CBZ nesta pasta.',
     workNotFound: 'Obra não encontrada no catálogo. Atualize o catálogo e tente de novo.',
