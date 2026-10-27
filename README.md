@@ -9,6 +9,7 @@ Uso pessoal, 100% offline: sem backend, sem conta, sem scraper. Você escolhe os
 ## Recursos
 
 - **Biblioteca**: grade de capas responsiva (mais colunas no tablet), busca, filtros (Todos/Lendo/Novos/Lidos), ordenação, faixa "Continuar lendo", editar informações (título, autor e descrição), marcar como lido e excluir (toque e segure na capa).
+- **Obras**: capítulos da mesma obra ficam juntos num único card na biblioteca; a tela da obra lista os capítulos em ordem, com progresso, botão Continuar/Começar e renomear obra (renomear para o nome de outra obra junta as duas). A obra e o nº do capítulo são detectados pelo nome do arquivo (`Obra - Chapter 12`, `Obra v03`, `Obra - 042`...) ou pelo `ComicInfo.xml`, e podem ser corrigidos em Editar informações. Livros que não parecem capítulo (`Dom Casmurro.epub`) ficam avulsos.
 - **CBZ**: extração para o disco (sem carregar o arquivo na memória), ordenação natural das páginas, leitura de `ComicInfo.xml` (detecta mangá; autor e resumo viram os campos do livro), paginação horizontal, zoom com pinça e toque duplo que seguem o ponto tocado, duas páginas lado a lado com o aparelho deitado, sentido de leitura alternável.
 - **PDF**: leitor nativo (`react-native-pdf`), capa gerada da primeira página (`react-native-pdf-thumbnail`).
 - **EPUB**: um capítulo por vez numa WebView, com scripts removidos, CSS do app (tema, fonte, tamanho, espaçamento, margens), sumário, links internos, progresso por capítulo + posição de rolagem.
@@ -119,9 +120,11 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk`. Por padrã
 src/app/                rotas do expo-router; só reexportam as telas das features
 src/features/library/   biblioteca: tela, busca/filtros, modais de ação e edição, importação
 src/features/reader/    leitor: telas CBZ/PDF/EPUB, zoom, barras, progresso
+src/features/series/    tela da obra: capítulos em ordem, continuar, renomear
 src/features/settings/  tela de ajustes
 src/entities/book/      livro: tipo e consultas SQLite, armazenamento, BookCard,
-                        formatos (CBZ, PDF, EPUB: parser puro + I/O)
+                        formatos (CBZ, PDF, EPUB: parser puro + I/O), detecção e agrupamento de obras,
+                        modais de ações e de edição do livro
 src/shared/             db (conexão e migrações), i18n pt-BR, temas, ajustes persistidos
 scripts/                gerador de arquivos de exemplo e de ícones
 tests/                  testes dos módulos puros
