@@ -12,6 +12,8 @@ export type Book = {
   /** Obra a que o capítulo pertence (null = livro avulso) */
   series: string | null;
   seriesNumber: number | null;
+  /** Id do arquivo na origem (Google Drive); null quando veio do seletor de arquivos */
+  sourceId: string | null;
   format: BookFormat;
   coverPath: string | null;
   addedAt: number;
@@ -30,6 +32,7 @@ type Row = {
   description: string | null;
   series: string | null;
   series_number: number | null;
+  source_id: string | null;
   format: BookFormat;
   cover_path: string | null;
   added_at: number;
@@ -48,6 +51,7 @@ const toBook = (r: Row): Book => ({
   description: r.description,
   series: r.series,
   seriesNumber: r.series_number,
+  sourceId: r.source_id,
   format: r.format,
   coverPath: r.cover_path,
   addedAt: r.added_at,
@@ -61,20 +65,21 @@ const toBook = (r: Row): Book => ({
 
 export type NewBook = Pick<
   Book,
-  'id' | 'title' | 'author' | 'description' | 'series' | 'seriesNumber' | 'format' | 'coverPath' | 'rtl' | 'pageCount'
+  'id' | 'title' | 'author' | 'description' | 'series' | 'seriesNumber' | 'sourceId' | 'format' | 'coverPath' | 'rtl' | 'pageCount'
 >;
 
 export async function insertBook(b: NewBook) {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO books (id, title, author, description, series, series_number, format, cover_path, added_at, rtl, page_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO books (id, title, author, description, series, series_number, source_id, format, cover_path, added_at, rtl, page_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     b.id,
     b.title,
     b.author,
     b.description,
     b.series,
     b.seriesNumber,
+    b.sourceId,
     b.format,
     b.coverPath,
     Date.now(),
@@ -209,6 +214,13 @@ export async function updateBookMeta(
     meta.pageCount ?? null,
     id,
   );
+}
+
+/** Ids de origem (Drive) dos livros já importados. */
+export async function listSourceIds(): Promise<Set<string>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ source_id: string }>('SELECT source_id FROM books WHERE source_id IS NOT NULL');
+  return new Set(rows.map((r) => r.source_id));
 }
 
 export async function deleteBookRow(id: string) {

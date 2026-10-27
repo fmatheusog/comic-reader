@@ -7,7 +7,7 @@ import { t } from '@/shared/i18n/pt';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useAppTheme } from '@/shared/theme';
 
-import type { ImportDraft } from './importer';
+import type { ImportDraft } from '@/entities/book/importer';
 
 type Props = {
   /** Lote a revisar; null fecha a tela. Troque a `key` a cada lote. */
@@ -65,7 +65,7 @@ export function ImportReviewModal({ drafts, busy, onCancel, onConfirm }: Props) 
 
         <FlatList
           data={rows}
-          keyExtractor={(r) => r.uri}
+          keyExtractor={(r) => r.sourceId ?? r.uri}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}
           renderItem={({ item, index }) => {

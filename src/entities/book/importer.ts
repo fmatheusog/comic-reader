@@ -20,6 +20,8 @@ export type ImportDraft = {
   series: string;
   /** Número do capítulo, como digitado (obrigatório quando há obra) */
   number: string;
+  /** Id do arquivo na origem (Google Drive), para não importar duas vezes */
+  sourceId?: string;
 };
 
 const FORMAT_BY_EXT: Record<string, BookFormat> = { epub: 'epub', cbz: 'cbz', pdf: 'pdf' };
@@ -133,7 +135,7 @@ export async function importDraft(draft: ImportDraft): Promise<ImportOutcome> {
     const series = draft.series.trim() ? cleanSeriesName(draft.series) : null;
     const seriesNumber = series ? parseChapterNumber(draft.number) : null;
 
-    await insertBook({ id, title, author, description, series, seriesNumber, format, coverPath, rtl, pageCount });
+    await insertBook({ id, title, author, description, series, seriesNumber, sourceId: draft.sourceId ?? null, format, coverPath, rtl, pageCount });
     return { name, ok: true };
   } catch (e) {
     console.warn(`Falha ao importar "${name}":`, e);

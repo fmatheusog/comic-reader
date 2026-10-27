@@ -23,6 +23,8 @@ const MIGRATIONS: string[] = [
   `ALTER TABLE books ADD COLUMN series TEXT;
    ALTER TABLE books ADD COLUMN series_number REAL;
    CREATE INDEX idx_books_series ON books(series COLLATE NOCASE, series_number);`,
+  `ALTER TABLE books ADD COLUMN source_id TEXT;
+   CREATE INDEX idx_books_source ON books(source_id);`,
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {

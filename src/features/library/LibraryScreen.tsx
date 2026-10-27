@@ -20,8 +20,8 @@ import { BookEditModal } from '@/entities/book/ui/BookEditModal';
 import { deleteBookRow, setFinished, updateBookInfo, type Book, type Filter, type SortKey } from '@/entities/book/db';
 import { useLibrary } from '@/features/library/useLibrary';
 import { t } from '@/shared/i18n/pt';
-import { discardDrafts, importDrafts, pickDrafts, type ImportDraft } from '@/features/library/importer';
-import { ImportReviewModal } from './ImportReviewModal';
+import { discardDrafts, importDrafts, pickDrafts, type ImportDraft } from '@/entities/book/importer';
+import { ImportReviewModal } from '@/entities/book/ui/ImportReviewModal';
 import { removeBookFiles } from '@/entities/book/storage';
 import { useAppTheme } from '@/shared/theme';
 
