@@ -1,8 +1,11 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { t } from '@/shared/i18n/pt';
+
 import { getAccessToken } from './auth';
 import {
   LIST_FIELDS,
+  classifyDriveError,
   QUERY_SHARED,
   queryChildren,
   sortEntries,
@@ -27,16 +30,32 @@ async function authedFetch(url: string, retry = true): Promise<Response> {
   return res;
 }
 
-/** Uma página da listagem, repetindo com espera quando o Google limita o ritmo (429) ou falha (5xx). */
+/** Erro com mensagem em português e o código HTTP/motivo (nunca o corpo da resposta nem ids). */
+async function driveError(res: Response): Promise<{ error: Error; retryable: boolean }> {
+  const { kind, reason } = classifyDriveError(res.status, await res.text().catch(() => ''));
+  const friendly: Record<typeof kind, string> = {
+    apiDisabled: t.drive.errApiDisabled,
+    scope: t.drive.errScope,
+    rateLimit: t.drive.errRateLimit,
+    forbidden: t.drive.errForbidden,
+    notFound: t.drive.errNotFound,
+    http: t.drive.loadError,
+  };
+  const detail = `HTTP ${res.status}${reason ? `, ${reason}` : ''}`;
+  return { error: new Error(`${friendly[kind]} (${detail})`), retryable: kind === 'rateLimit' || res.status >= 500 };
+}
+
+/** Uma página da listagem, repetindo com espera quando o Google limita o ritmo ou falha (5xx). */
 async function fetchPage(url: string): Promise<{ files?: DriveFile[]; nextPageToken?: string }> {
   for (let attempt = 0; ; attempt++) {
     const res = await authedFetch(url);
     if (res.ok) return res.json();
-    if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+    const { error, retryable } = await driveError(res);
+    if (retryable && attempt < 3) {
       await sleep(600 * 2 ** attempt);
       continue;
     }
-    throw new Error(`Drive respondeu ${res.status}`); // sem o corpo da resposta, que pode citar ids
+    throw error;
   }
 }
 
@@ -66,7 +85,7 @@ async function listQuery(q: string): Promise<DriveEntry[]> {
 export async function getFolderName(folderId: string): Promise<string> {
   const params = new URLSearchParams({ fields: 'name', supportsAllDrives: 'true' });
   const res = await authedFetch(`${BASE}/files/${encodeURIComponent(folderId)}?${params}`);
-  if (!res.ok) throw new Error(`Drive respondeu ${res.status}`);
+  if (!res.ok) throw (await driveError(res)).error;
   return ((await res.json()) as { name: string }).name;
 }
 

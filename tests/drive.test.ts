@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorks, formatBytes, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
+import { buildWorks, classifyDriveError, formatBytes, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
 
 test('pastas e arquivos suportados viram entradas', () => {
   assert.deepEqual(toEntry({ id: '1', name: 'Obra', mimeType: 'application/vnd.google-apps.folder' }), {
@@ -118,4 +118,16 @@ test('id da pasta a partir de link ou id (valores de exemplo)', () => {
   assert.equal(parseFolderId(`https://drive.google.com/open?id=${id}`), id);
   assert.equal(parseFolderId('  '), null);
   assert.equal(parseFolderId('não é um link'), null);
+});
+
+test('classifica erros da Drive API pelo motivo, sem depender do texto', () => {
+  const body = (reason: string, message = '') => JSON.stringify({ error: { message, errors: [{ reason }] } });
+  assert.equal(classifyDriveError(403, body('accessNotConfigured')).kind, 'apiDisabled');
+  assert.equal(classifyDriveError(403, body('x', 'Google Drive API has not been used in project 1 before or it is disabled.')).kind, 'apiDisabled');
+  assert.equal(classifyDriveError(403, body('insufficientPermissions')).kind, 'scope');
+  assert.equal(classifyDriveError(403, body('userRateLimitExceeded')).kind, 'rateLimit');
+  assert.equal(classifyDriveError(429, '').kind, 'rateLimit');
+  assert.equal(classifyDriveError(403, body('forbidden')).kind, 'forbidden');
+  assert.deepEqual(classifyDriveError(404, 'não é json'), { kind: 'notFound', reason: null });
+  assert.equal(classifyDriveError(500, '').kind, 'http');
 });
