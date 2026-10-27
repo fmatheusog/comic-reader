@@ -16,6 +16,9 @@ Uso pessoal, 100% offline: sem backend, sem conta, sem scraper. Você escolhe os
 - **CBZ**: extração para o disco (sem carregar o arquivo na memória), ordenação natural das páginas, leitura de `ComicInfo.xml` (detecta mangá; autor e resumo viram os campos do livro), paginação horizontal, zoom com pinça e toque duplo que seguem o ponto tocado, duas páginas lado a lado com o aparelho deitado, sentido de leitura alternável.
 - **PDF**: leitor nativo (`react-native-pdf`), capa gerada da primeira página (`react-native-pdf-thumbnail`).
 - **EPUB**: um capítulo por vez numa WebView, com CSS do app (tema, fonte, tamanho, espaçamento, margens, alinhamento), sumário e links internos. Segurança em duas camadas: scripts e manipuladores de evento são removidos do capítulo e cada capítulo carrega com uma política CSP que só deixa rodar o script do leitor (nonce aleatório), bloqueia a rede e só abre arquivos locais. O progresso é ponderado pelo tamanho dos capítulos, há uma barra para pular no livro e um botão **Voltar** depois de seguir uma nota ou um item do sumário. Mudar a fonte ou girar a tela mantém o ponto de leitura.
+- **Leitura contínua**: ao chegar ao fim de um capítulo (CBZ, PDF ou EPUB), uma tela oferece abrir o **próximo capítulo da obra** (com confirmação, para não pular um por engano) ou voltar. Escolher qualquer uma das duas marca o capítulo como lido.
+- **Gerenciar obras**: segure uma obra na biblioteca (ou toque em ✎ na tela dela) para renomear, marcar toda como lida ou não lida e excluir.
+- **Armazenamento**: nos Ajustes, o espaço usado pelos livros e a opção de excluir os já lidos (dá para importar de novo depois).
 - **Gestos por zona**: esquerda = voltar, direita = avançar, centro = mostrar/ocultar controles (invertido no modo mangá).
 - **Temas**: sistema, claro, sépia e escuro. Progresso salvo automaticamente.
 
