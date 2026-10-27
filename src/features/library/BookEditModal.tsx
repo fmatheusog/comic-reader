@@ -15,6 +15,12 @@ import type { Book, BookInfo } from '@/entities/book/db';
 import { t } from '@/shared/i18n/pt';
 import { useAppTheme } from '@/shared/theme';
 
+/** Aceita vírgula decimal; vazio ou inválido vira null. */
+const parseNumber = (text: string) => {
+  const n = Number(text.trim().replace(',', '.'));
+  return text.trim() && Number.isFinite(n) ? n : null;
+};
+
 type Props = {
   book: Book | null;
   onClose: () => void;
@@ -27,6 +33,8 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
   const [title, setTitle] = useState(book?.title ?? '');
   const [author, setAuthor] = useState(book?.author ?? '');
   const [description, setDescription] = useState(book?.description ?? '');
+  const [series, setSeries] = useState(book?.series ?? '');
+  const [number, setNumber] = useState(book?.seriesNumber != null ? String(book.seriesNumber) : '');
 
   // Sem KeyboardAvoidingView: ele brigava com o redimensionamento da janela no Android e a tela tremia.
   const [keyboard, setKeyboard] = useState(0);
@@ -66,6 +74,23 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
               accessibilityLabel={t.fieldAuthor}
               style={inputStyle}
             />
+            <Text style={[styles.label, { color: theme.textMuted }]}>{t.fieldSeries}</Text>
+            <TextInput
+              value={series}
+              onChangeText={setSeries}
+              placeholder={t.fieldSeriesHint}
+              placeholderTextColor={theme.textMuted}
+              accessibilityLabel={t.fieldSeries}
+              style={inputStyle}
+            />
+            <Text style={[styles.label, { color: theme.textMuted }]}>{t.fieldNumber}</Text>
+            <TextInput
+              value={number}
+              onChangeText={setNumber}
+              keyboardType="decimal-pad"
+              accessibilityLabel={t.fieldNumber}
+              style={inputStyle}
+            />
             <Text style={[styles.label, { color: theme.textMuted }]}>{t.fieldDescription}</Text>
             <TextInput
               value={description}
@@ -81,7 +106,7 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
               <Text style={[styles.actionText, { color: theme.text }]}>{t.cancel}</Text>
             </Pressable>
             <Pressable
-              onPress={() => title.trim() && onSave({ title, author, description })}
+              onPress={() => title.trim() && onSave({ title, author, description, series, seriesNumber: parseNumber(number) })}
               accessibilityRole="button"
               style={styles.action}>
               <Text style={[styles.actionText, { color: theme.accent }]}>{t.save}</Text>

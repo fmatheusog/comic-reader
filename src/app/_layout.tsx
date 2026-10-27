@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { backfillSeries } from '@/entities/book/backfill';
 import { loadSettings } from '@/shared/settings/store';
 import { useAppTheme } from '@/shared/theme';
 
@@ -12,7 +13,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    loadSettings()
+    Promise.all([loadSettings(), backfillSeries()])
       .catch(() => {})
       .finally(() => setReady(true));
   }, []);

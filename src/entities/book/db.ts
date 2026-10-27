@@ -9,6 +9,9 @@ export type Book = {
   title: string;
   author: string | null;
   description: string | null;
+  /** Obra a que o capítulo pertence (null = livro avulso) */
+  series: string | null;
+  seriesNumber: number | null;
   format: BookFormat;
   coverPath: string | null;
   addedAt: number;
@@ -25,6 +28,8 @@ type Row = {
   title: string;
   author: string | null;
   description: string | null;
+  series: string | null;
+  series_number: number | null;
   format: BookFormat;
   cover_path: string | null;
   added_at: number;
@@ -41,6 +46,8 @@ const toBook = (r: Row): Book => ({
   title: r.title,
   author: r.author,
   description: r.description,
+  series: r.series,
+  seriesNumber: r.series_number,
   format: r.format,
   coverPath: r.cover_path,
   addedAt: r.added_at,
@@ -54,18 +61,20 @@ const toBook = (r: Row): Book => ({
 
 export type NewBook = Pick<
   Book,
-  'id' | 'title' | 'author' | 'description' | 'format' | 'coverPath' | 'rtl' | 'pageCount'
+  'id' | 'title' | 'author' | 'description' | 'series' | 'seriesNumber' | 'format' | 'coverPath' | 'rtl' | 'pageCount'
 >;
 
 export async function insertBook(b: NewBook) {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO books (id, title, author, description, format, cover_path, added_at, rtl, page_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO books (id, title, author, description, series, series_number, format, cover_path, added_at, rtl, page_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     b.id,
     b.title,
     b.author,
     b.description,
+    b.series,
+    b.seriesNumber,
     b.format,
     b.coverPath,
     Date.now(),
@@ -89,9 +98,9 @@ export async function listBooks(opts: {
   const where: string[] = [];
   const params: string[] = [];
   if (opts.search.trim()) {
-    where.push('(title LIKE ? OR author LIKE ?)');
+    where.push('(title LIKE ? OR author LIKE ? OR series LIKE ?)');
     const q = `%${opts.search.trim()}%`;
-    params.push(q, q);
+    params.push(q, q, q);
   }
   if (opts.filter === 'reading') where.push('finished = 0 AND last_read_at IS NOT NULL');
   if (opts.filter === 'new') where.push('finished = 0 AND last_read_at IS NULL');
@@ -130,18 +139,48 @@ export async function saveProgress(id: string, progress: number, position: strin
   );
 }
 
-export type BookInfo = Pick<Book, 'title' | 'author' | 'description'>;
+export type BookInfo = Pick<Book, 'title' | 'author' | 'description' | 'series' | 'seriesNumber'>;
 
 /** Edição manual dos metadados; campos vazios viram NULL. */
 export async function updateBookInfo(id: string, info: BookInfo) {
   const db = await getDb();
   await db.runAsync(
-    'UPDATE books SET title = ?, author = ?, description = ? WHERE id = ?',
+    'UPDATE books SET title = ?, author = ?, description = ?, series = ?, series_number = ? WHERE id = ?',
     info.title.trim(),
     info.author?.trim() || null,
     info.description?.trim() || null,
+    info.series?.trim() || null,
+    info.series?.trim() ? info.seriesNumber : null,
     id,
   );
+}
+
+/** Capítulos de uma obra na ordem de leitura (número; sem número vão para o fim, por título). */
+export async function listSeriesBooks(series: string): Promise<Book[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Row>(
+    `SELECT * FROM books WHERE series = ? COLLATE NOCASE
+     ORDER BY series_number IS NULL, series_number ASC, title COLLATE NOCASE ASC`,
+    series,
+  );
+  return rows.map(toBook);
+}
+
+/** Renomeia a obra em todos os capítulos (também serve para mesclar duas obras). */
+export async function renameSeries(from: string, to: string) {
+  const db = await getDb();
+  await db.runAsync('UPDATE books SET series = ? WHERE series = ? COLLATE NOCASE', to.trim(), from);
+}
+
+/** Livros que ainda não passaram pela detecção de obra. */
+export async function listBooksWithoutSeries(): Promise<Pick<Book, 'id' | 'title'>[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: string; title: string }>('SELECT id, title FROM books WHERE series IS NULL');
+}
+
+export async function setBookSeries(id: string, series: string, number: number | null) {
+  const db = await getDb();
+  await db.runAsync('UPDATE books SET series = ?, series_number = ? WHERE id = ?', series, number, id);
 }
 
 export async function setFinished(id: string, finished: boolean) {

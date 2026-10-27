@@ -5,6 +5,8 @@ export type ComicInfo = {
   series?: string;
   writer?: string;
   summary?: string;
+  /** Número do capítulo/volume (campo Number) */
+  number?: number;
   manga: boolean;
   /** Mangá lido da direita para a esquerda */
   rtl: boolean;
@@ -20,6 +22,7 @@ export function parseComicInfo(xml: string): ComicInfo {
     series: str(doc.Series),
     writer: str(doc.Writer),
     summary: str(doc.Summary),
+    number: Number.isFinite(Number(doc.Number)) && str(doc.Number) ? Number(doc.Number) : undefined,
     manga: manga != null && manga !== 'No' && manga !== 'Unknown',
     rtl: manga === 'YesAndRightToLeft',
   };
