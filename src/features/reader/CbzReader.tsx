@@ -13,13 +13,16 @@ import { resolveUri } from '@/entities/book/storage';
 import { updateSettings, useSettings } from '@/shared/settings/store';
 import { buildSpreads, spreadIndexOf } from '@/features/reader/spreads';
 
+import { EndOfChapter } from './EndOfChapter';
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 import { ZoomableView } from './ZoomableView';
+
+type Item = number[] | 'end';
 
 export function CbzReader({ book }: { book: Book }) {
   useKeepAwake();
   const { width, height } = useWindowDimensions();
-  const listRef = useRef<FlatList<number[]>>(null);
+  const listRef = useRef<FlatList<Item>>(null);
 
   const pages = useMemo(() => readExtracted(book.id).pages, [book.id]);
   const [rtl, setRtl] = useState(book.rtl);
@@ -35,13 +38,15 @@ export function CbzReader({ book }: { book: Book }) {
   const useDual = dual && landscape;
   const spreads = useMemo(() => buildSpreads(pages.length, useDual), [pages.length, useDual]);
   const spreadIdx = spreadIndexOf(spreads, page);
+  // depois da última página vem o cartão de fim de capítulo
+  const items = useMemo<Item[]>(() => [...spreads, 'end'], [spreads]);
 
   useSaveProgress(book.id, pages.length ? (page + 1) / pages.length : 0, { page }, pages.length > 0);
 
   const goTo = (idx: number, animated = true) => {
-    const i = Math.min(Math.max(idx, 0), spreads.length - 1);
+    const i = Math.min(Math.max(idx, 0), items.length - 1);
     listRef.current?.scrollToIndex({ index: i, animated });
-    setPage(spreads[i][0]);
+    if (spreads[i]) setPage(spreads[i][0]);
   };
 
   const onTap = (fx: number) => {
@@ -63,7 +68,12 @@ export function CbzReader({ book }: { book: Book }) {
     );
   }
 
-  const renderSpread = ({ item }: { item: number[] }) => (
+  const renderSpread = ({ item }: { item: Item }) =>
+    item === 'end' ? (
+      <View style={{ width, height }}>
+        <EndOfChapter book={book} onStay={() => goTo(spreads.length - 1)} />
+      </View>
+    ) : (
     <ZoomableView width={width} height={height} onTap={onTap} onZoomChange={setZoomed}>
       <View style={[styles.spread, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
         {item.map((p) => (
@@ -86,14 +96,14 @@ export function CbzReader({ book }: { book: Book }) {
         // remonta ao girar a tela ou mudar o sentido, para o scroll inicial cair na página certa
         key={`${width}x${height}-${rtl}-${useDual}`}
         ref={listRef}
-        data={spreads}
+        data={items}
         horizontal
         pagingEnabled
         inverted={rtl}
         scrollEnabled={!zoomed}
         initialScrollIndex={spreadIdx}
         getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-        keyExtractor={(s) => s.join('-')}
+        keyExtractor={(s) => (s === 'end' ? 'end' : s.join('-'))}
         renderItem={renderSpread}
         showsHorizontalScrollIndicator={false}
         windowSize={5}

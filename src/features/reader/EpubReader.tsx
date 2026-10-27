@@ -17,6 +17,7 @@ import { ReadingSettingsSheet } from '@/shared/settings/ReadingSettingsSheet';
 import { useSettings } from '@/shared/settings/store';
 import { useAppTheme } from '@/shared/theme';
 
+import { EndOfChapter } from './EndOfChapter';
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 
 // os tipos do react-native-webview 14 não declaram o ref que o componente aceita em runtime
@@ -45,6 +46,7 @@ export function EpubReader({ book }: { book: Book }) {
   const [controls, setControls] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEnd, setShowEnd] = useState(false);
   // de onde você veio ao seguir um link ou pular pelo sumário/barra
   const [history, setHistory] = useState<Pos[]>([]);
 
@@ -148,6 +150,7 @@ export function EpubReader({ book }: { book: Book }) {
         break;
       case 'edge':
         if (m.dir === 1 && pos.chapter < total - 1) openChapter(pos.chapter + 1, 0);
+        else if (m.dir === 1) setShowEnd(true);
         if (m.dir === -1 && pos.chapter > 0) openChapter(pos.chapter - 1, 1);
         break;
       case 'link': {
@@ -207,7 +210,12 @@ export function EpubReader({ book }: { book: Book }) {
           <Text style={{ color: theme.text }}>{t.chapterError}</Text>
         </View>
       )}
-      <ReaderChrome visible={controls} title={`${book.title} · ${chapterTitle}`} onBack={() => router.back()}>
+      {showEnd && (
+        <View style={StyleSheet.absoluteFill}>
+          <EndOfChapter book={book} onStay={() => setShowEnd(false)} />
+        </View>
+      )}
+      <ReaderChrome visible={controls && !showEnd} title={`${book.title} · ${chapterTitle}`} onBack={() => router.back()}>
         <SeekBar
           value={progress}
           onSeek={(f) => {

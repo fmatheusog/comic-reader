@@ -168,6 +168,14 @@ export async function listSeriesBooks(series: string): Promise<Book[]> {
   return rows.map(toBook);
 }
 
+/** O capítulo seguinte da mesma obra, na ordem de leitura; null se for o último ou se o livro for avulso. */
+export async function getNextChapter(id: string, series: string | null): Promise<Book | null> {
+  if (!series) return null;
+  const chapters = await listSeriesBooks(series);
+  const i = chapters.findIndex((b) => b.id === id);
+  return i >= 0 ? (chapters[i + 1] ?? null) : null;
+}
+
 /** Renomeia a obra em todos os capítulos (também serve para mesclar duas obras). */
 export async function renameSeries(from: string, to: string) {
   const db = await getDb();

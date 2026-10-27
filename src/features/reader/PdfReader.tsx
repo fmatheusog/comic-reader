@@ -11,6 +11,7 @@ import { t } from '@/shared/i18n/pt';
 import { updateSettings, useSettings } from '@/shared/settings/store';
 import { resolveUri } from '@/entities/book/storage';
 
+import { EndOfChapter } from './EndOfChapter';
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 
 export function PdfReader({ book }: { book: Book }) {
@@ -24,10 +25,15 @@ export function PdfReader({ book }: { book: Book }) {
   const [total, setTotal] = useState(book.pageCount ?? 0);
   const [rtl, setRtl] = useState(book.rtl);
   const [controls, setControls] = useState(false);
+  const [showEnd, setShowEnd] = useState(false);
 
   useSaveProgress(book.id, total ? page / total : 0, { page }, total > 0);
 
   const goTo = (p: number) => {
+    if (total > 0 && p > total) {
+      setShowEnd(true);
+      return;
+    }
     const next = Math.min(Math.max(p, 1), total || 1);
     pdfRef.current?.setPage(next);
     setPage(next);
@@ -75,7 +81,12 @@ export function PdfReader({ book }: { book: Book }) {
         onPageSingleTap={(_p, x) => onTap(x)}
         onError={() => {}}
       />
-      <ReaderChrome visible={controls} title={book.title} onBack={() => router.back()}>
+      {showEnd && (
+        <View style={StyleSheet.absoluteFill}>
+          <EndOfChapter book={book} onStay={() => setShowEnd(false)} />
+        </View>
+      )}
+      <ReaderChrome visible={controls && !showEnd} title={book.title} onBack={() => router.back()}>
         <SeekBar
           value={total ? page / total : 0}
           reversed={rtl}
