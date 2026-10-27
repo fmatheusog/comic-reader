@@ -64,6 +64,7 @@ npx eslint src
 
 - No SDK 58, `File.copy()` e `File.move()` do `expo-file-system` são **assíncronos**: sem `await`, o arquivo copiado fica vazio e a importação falha com "Zip headers not found". Use `await` (ou `copySync`/`moveSync`).
 - Depois de mover arquivos de lugar, o Metro pode reclamar de módulo não encontrado: reinicie com `npx expo start -c`.
+- `npm audit` aponta 3 vulnerabilidades altas, todas do `zod` 3.x (consumo de memória ao validar coleções enormes), que chega por ferramentas de desenvolvimento (`@expo/cli` e o plugin de hooks do eslint). O app não usa `zod` e isso não vai para o APK. **Não rode `npm audit fix --force`**: ele "corrige" rebaixando o `expo` para o SDK 54. O aviso some quando o `@expo/cli` atualizar o `zod` (`npx expo install --fix`).
 - Para mandar um arquivo ao emulador: `adb push fixtures/exemplo.cbz /sdcard/Download/`.
 
 ### Arquivos de exemplo
