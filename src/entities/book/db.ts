@@ -223,6 +223,15 @@ export async function listSourceIds(): Promise<Set<string>> {
   return new Set(rows.map((r) => r.source_id));
 }
 
+/** Capa de cada livro importado do Drive, pelo id do arquivo de origem (para ilustrar o catálogo). */
+export async function listCoversBySource(): Promise<Map<string, string>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ source_id: string; cover_path: string }>(
+    'SELECT source_id, cover_path FROM books WHERE source_id IS NOT NULL AND cover_path IS NOT NULL',
+  );
+  return new Map(rows.map((r) => [r.source_id, r.cover_path]));
+}
+
 export async function deleteBookRow(id: string) {
   const db = await getDb();
   await db.runAsync('DELETE FROM books WHERE id = ?', id);

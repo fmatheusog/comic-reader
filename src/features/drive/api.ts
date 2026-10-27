@@ -9,9 +9,12 @@ import {
   toEntry,
   type DriveEntry,
   type DriveFile,
+  type DriveNode,
 } from './model';
 
 const BASE = 'https://www.googleapis.com/drive/v3';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** GET autenticado; se o token vencer (401), pede outro e tenta uma vez de novo. */
 async function authedFetch(url: string, retry = true): Promise<Response> {
@@ -22,6 +25,19 @@ async function authedFetch(url: string, retry = true): Promise<Response> {
     return authedFetch(url, false);
   }
   return res;
+}
+
+/** Uma página da listagem, repetindo com espera quando o Google limita o ritmo (429) ou falha (5xx). */
+async function fetchPage(url: string): Promise<{ files?: DriveFile[]; nextPageToken?: string }> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await authedFetch(url);
+    if (res.ok) return res.json();
+    if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+      await sleep(600 * 2 ** attempt);
+      continue;
+    }
+    throw new Error(`Drive respondeu ${res.status}`); // sem o corpo da resposta, que pode citar ids
+  }
 }
 
 async function listQuery(q: string): Promise<DriveEntry[]> {
@@ -36,9 +52,7 @@ async function listQuery(q: string): Promise<DriveEntry[]> {
       includeItemsFromAllDrives: 'true',
     });
     if (pageToken) params.set('pageToken', pageToken);
-    const res = await authedFetch(`${BASE}/files?${params}`);
-    if (!res.ok) throw new Error(`Drive respondeu ${res.status}`); // sem o corpo da resposta, que pode citar ids
-    const body = (await res.json()) as { files?: DriveFile[]; nextPageToken?: string };
+    const body = await fetchPage(`${BASE}/files?${params}`);
     for (const f of body.files ?? []) {
       const entry = toEntry(f);
       if (entry) entries.push(entry);
@@ -48,38 +62,63 @@ async function listQuery(q: string): Promise<DriveEntry[]> {
   return sortEntries(entries);
 }
 
+/** Nome de uma pasta pelo id (para titular o catálogo quando a pasta vem fixa do .env). */
+export async function getFolderName(folderId: string): Promise<string> {
+  const params = new URLSearchParams({ fields: 'name', supportsAllDrives: 'true' });
+  const res = await authedFetch(`${BASE}/files/${encodeURIComponent(folderId)}?${params}`);
+  if (!res.ok) throw new Error(`Drive respondeu ${res.status}`);
+  return ((await res.json()) as { name: string }).name;
+}
+
 /** Itens que outras pessoas compartilharam com você (nível mais alto). */
 export const listSharedWithMe = () => listQuery(QUERY_SHARED);
 
 /** Conteúdo de uma pasta; 'root' é o "Meu Drive". */
 export const listFolder = (folderId: string) => listQuery(queryChildren(folderId));
 
-export type RemoteFile = { id: string; name: string; format: 'cbz' | 'epub' | 'pdf'; size: number | null; folderName: string };
+const WAVE = 5; // pastas lidas ao mesmo tempo
 
 /**
- * Todos os arquivos suportados dentro de uma pasta, incluindo as subpastas.
- * `folderName` é o nome da pasta que contém cada arquivo (vira a obra sugerida).
+ * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas).
+ * Só lê; devolve a árvore para `buildWorks` transformar em obras.
  */
-export async function collectFiles(
-  folder: { id: string; name: string },
-  onProgress?: (found: number) => void,
+export async function crawlFolder(
+  root: { id: string; name: string },
+  onProgress: (folders: number, files: number) => void,
   signal?: AbortSignal,
-): Promise<RemoteFile[]> {
-  const found: RemoteFile[] = [];
-  const queue = [folder];
-  const seen = new Set<string>();
-  while (queue.length) {
-    if (signal?.aborted) throw new Error('cancelado');
-    const current = queue.shift()!;
-    if (seen.has(current.id)) continue; // atalhos podem formar ciclos
-    seen.add(current.id);
-    for (const e of await listFolder(current.id)) {
-      if (e.kind === 'folder') queue.push({ id: e.id, name: e.name });
-      else found.push({ id: e.id, name: e.name, format: e.format, size: e.size, folderName: current.name });
+): Promise<DriveNode> {
+  const rootNode: DriveNode = { id: root.id, name: root.name, files: [], children: [] };
+  const seen = new Set([root.id]); // atalhos podem formar ciclos
+  let frontier = [rootNode];
+  let folders = 0;
+  let files = 0;
+
+  while (frontier.length) {
+    const next: DriveNode[] = [];
+    for (let i = 0; i < frontier.length; i += WAVE) {
+      if (signal?.aborted) throw new Error('cancelado');
+      await Promise.all(
+        frontier.slice(i, i + WAVE).map(async (node) => {
+          for (const e of await listFolder(node.id)) {
+            if (e.kind === 'folder') {
+              if (seen.has(e.id)) continue;
+              seen.add(e.id);
+              const child: DriveNode = { id: e.id, name: e.name, files: [], children: [] };
+              node.children.push(child);
+              next.push(child);
+            } else {
+              node.files.push({ id: e.id, name: e.name, format: e.format, size: e.size });
+              files++;
+            }
+          }
+          folders++;
+          onProgress(folders, files);
+        }),
+      );
     }
-    onProgress?.(found.length);
+    frontier = next;
   }
-  return found;
+  return rootNode;
 }
 
 /** Apaga o que sobrou de downloads no cache (interrompidos ou cancelados). */
