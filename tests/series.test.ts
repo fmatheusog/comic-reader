@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { cleanSeriesName, guessChapterNumber, guessSeries, seriesKey } from '../src/entities/book/series.ts';
+import { cleanSeriesName, guessChapterNumber, guessSeries, parseChapterNumber, seriesKey, validateInfo } from '../src/entities/book/series.ts';
 
 test('capítulo com palavra-chave', () => {
   assert.deepEqual(guessSeries('A Sign of Affection - Chapter 1.cbz'), { series: 'A Sign of Affection', number: 1 });
@@ -42,4 +42,15 @@ test('número do capítulo com a obra já conhecida', () => {
   assert.equal(guessChapterNumber('012 - Título.cbz'), 12);
   assert.equal(guessChapterNumber('Vol 03 (Digital).cbz'), 3);
   assert.equal(guessChapterNumber('Título sem número.cbz'), null);
+});
+
+test('validação: obra exige número de capítulo', () => {
+  assert.equal(validateInfo({ title: 'X', series: 'Obra', number: '' }), 'number');
+  assert.equal(validateInfo({ title: 'X', series: 'Obra', number: 'abc' }), 'number');
+  assert.equal(validateInfo({ title: 'X', series: 'Obra', number: '12,5' }), null);
+  assert.equal(validateInfo({ title: 'X', series: 'Obra', number: '0' }), null);
+  assert.equal(validateInfo({ title: 'X', series: '', number: '' }), null); // avulso
+  assert.equal(validateInfo({ title: ' ', series: '', number: '' }), 'title');
+  assert.equal(parseChapterNumber('-3'), null);
+  assert.equal(parseChapterNumber('7,5'), 7.5);
 });

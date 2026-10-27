@@ -55,3 +55,20 @@ export function guessChapterNumber(fileName: string): number | null {
   }
   return null;
 }
+
+/** Lê o número digitado (aceita vírgula decimal); vazio ou inválido vira null. */
+export function parseChapterNumber(text: string): number | null {
+  const clean = text.trim().replace(',', '.');
+  if (!clean) return null;
+  const n = Number(clean);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export type InfoError = 'title' | 'number' | null;
+
+/** Título é obrigatório; informando a obra, o número do capítulo também. Sem obra, é livro avulso. */
+export function validateInfo(info: { title: string; series: string; number: string }): InfoError {
+  if (!info.title.trim()) return 'title';
+  if (info.series.trim() && parseChapterNumber(info.number) == null) return 'number';
+  return null;
+}

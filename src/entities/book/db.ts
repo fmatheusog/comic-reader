@@ -89,22 +89,19 @@ export async function getBook(id: string): Promise<Book | null> {
   return row ? toBook(row) : null;
 }
 
-export async function listBooks(opts: {
-  search: string;
-  filter: Filter;
-  sort: SortKey;
-}): Promise<Book[]> {
+/** Todos os livros que batem com a busca (e, se o termo casa com um capítulo, a obra inteira). O filtro de leitura é feito depois, por obra. */
+export async function listBooks(opts: { search: string; sort: SortKey }): Promise<Book[]> {
   const db = await getDb();
   const where: string[] = [];
   const params: string[] = [];
   if (opts.search.trim()) {
-    where.push('(title LIKE ? OR author LIKE ? OR series LIKE ?)');
+    where.push(
+      `(title LIKE ? OR author LIKE ? OR series LIKE ? OR series COLLATE NOCASE IN (
+         SELECT series FROM books WHERE series IS NOT NULL AND (title LIKE ? OR author LIKE ?)))`,
+    );
     const q = `%${opts.search.trim()}%`;
-    params.push(q, q, q);
+    params.push(q, q, q, q, q);
   }
-  if (opts.filter === 'reading') where.push('finished = 0 AND last_read_at IS NOT NULL');
-  if (opts.filter === 'new') where.push('finished = 0 AND last_read_at IS NULL');
-  if (opts.filter === 'read') where.push('finished = 1');
   const order =
     opts.sort === 'title'
       ? 'title COLLATE NOCASE ASC'

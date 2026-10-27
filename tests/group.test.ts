@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { groupBySeries, resumeChapter } from '../src/entities/book/group.ts';
+import { arrangeItems, groupBySeries, resumeChapter } from '../src/entities/book/group.ts';
 
 const book = (id: string, series: string | null, n: number | null, extra = {}) =>
   ({ id, title: id, series, seriesNumber: n, finished: false, lastReadAt: null, ...extra }) as never;
@@ -34,4 +34,25 @@ test('a chave não mexe nas letras do nome', () => {
   const [g] = groupBySeries([book('a', 'Sasha  Sins', 1), book('b', 'sasha sins', 2)]);
   assert.equal((g as { key: string }).key, 'sasha sins');
   assert.deepEqual(ids(g), ['a', 'b']);
+});
+
+test('filtros valem para a obra inteira e o card mantém todos os capítulos', () => {
+  const books = [
+    book('1', 'S', 1, { finished: true, progress: 1 }),
+    book('2', 'S', 2),
+    book('3', 'Lida', 1, { finished: true, progress: 1 }),
+    book('4', 'Nova', 1),
+    book('5', null, null, { lastReadAt: 9, progress: 0.3 }),
+  ];
+  const names = (f: 'all' | 'reading' | 'new' | 'read') =>
+    arrangeItems(books, f, 'recent').map((i) => (i.kind === 'series' ? `${i.name}:${i.books.length}` : (i.book as { id: string }).id));
+  assert.deepEqual(names('reading'), ['S:2', '5']); // S tem um lido e um não lido: está em andamento
+  assert.deepEqual(names('read'), ['Lida:1']);
+  assert.deepEqual(names('new'), ['Nova:1']);
+  assert.equal(names('all').length, 4);
+});
+
+test('ordenar por título usa o nome da obra', () => {
+  const items = arrangeItems([book('z', null, null, { title: 'Zebra' }), book('a', 'Berserk', 1), book('b', 'Akira', 1)], 'all', 'title');
+  assert.deepEqual(items.map((i) => (i.kind === 'series' ? i.name : 'Zebra')), ['Akira', 'Berserk', 'Zebra']);
 });

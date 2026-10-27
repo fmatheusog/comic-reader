@@ -1,4 +1,4 @@
-import type { Book } from './db';
+import type { Book, Filter, SortKey } from './db';
 
 // mesma regra de agrupamento de seriesKey (series.ts); sem import para os testes rodarem direto no Node
 const keyOf = (name: string) => name.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -47,4 +47,23 @@ export function resumeChapter(books: Book[]): Book | undefined {
     .filter((b) => !b.finished && b.lastReadAt != null)
     .sort((a, b) => (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0))[0];
   return inProgress ?? books.find((b) => !b.finished) ?? books[0];
+}
+
+const started = (b: Book) => b.finished || b.progress > 0 || b.lastReadAt != null;
+
+/** Estado de leitura: uma obra só é "lida" com todos os capítulos lidos e "nova" se nenhum foi aberto. */
+export function itemStatus(item: LibraryItem): 'new' | 'reading' | 'read' {
+  const books = item.kind === 'series' ? item.books : [item.book];
+  if (books.every((b) => b.finished)) return 'read';
+  return books.some(started) ? 'reading' : 'new';
+}
+
+const itemName = (item: LibraryItem) => (item.kind === 'series' ? item.name : item.book.title);
+
+/** Agrupa por obra e só então filtra e ordena, para os números e estados valerem para a obra inteira. */
+export function arrangeItems(books: Book[], filter: Filter, sort: SortKey): LibraryItem[] {
+  let items = groupBySeries(books);
+  if (filter !== 'all') items = items.filter((i) => itemStatus(i) === filter);
+  if (sort === 'title') items = [...items].sort((a, b) => itemName(a).localeCompare(itemName(b), undefined, { sensitivity: 'base', numeric: true }));
+  return items;
 }
