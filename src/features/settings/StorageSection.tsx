@@ -8,6 +8,14 @@ import { t } from '@/shared/i18n/pt';
 import { useAppTheme } from '@/shared/theme';
 import { formatBytes } from '@/shared/utils/bytes';
 
+async function loadUsage() {
+  const [usage, read] = await Promise.all([measureLibrary(), listFinishedBooks()]);
+  return {
+    usage,
+    finished: { count: read.length, size: read.reduce((sum, b) => sum + (usage.perBook.get(b.id) ?? 0), 0) },
+  };
+}
+
 /** Espaço usado pelos livros e limpeza dos já lidos. */
 export function StorageSection() {
   const theme = useAppTheme();
@@ -15,15 +23,18 @@ export function StorageSection() {
   const [finished, setFinished] = useState<{ count: number; size: number }>({ count: 0, size: 0 });
   const [message, setMessage] = useState<string | null>(null);
 
-  const measure = useCallback(async () => {
-    const [u, read] = await Promise.all([measureLibrary(), listFinishedBooks()]);
-    setUsage(u);
-    setFinished({ count: read.length, size: read.reduce((sum, b) => sum + (u.perBook.get(b.id) ?? 0), 0) });
+  const apply = useCallback((r: Awaited<ReturnType<typeof loadUsage>>) => {
+    setUsage(r.usage);
+    setFinished(r.finished);
   }, []);
 
   useEffect(() => {
-    measure();
-  }, [measure]);
+    let alive = true;
+    loadUsage().then((r) => alive && apply(r));
+    return () => {
+      alive = false;
+    };
+  }, [apply]);
 
   const confirmDelete = () =>
     Alert.alert(t.deleteRead, t.deleteReadBody(finished.count, formatBytes(finished.size)), [
@@ -35,7 +46,7 @@ export function StorageSection() {
           const n = await deleteFinishedBooks();
           setMessage(t.storageDone(n));
           setUsage(null);
-          measure();
+          loadUsage().then(apply);
         },
       },
     ]);
