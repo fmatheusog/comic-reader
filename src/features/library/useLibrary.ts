@@ -1,16 +1,17 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { groupBySeries, type LibraryItem } from '@/entities/book/group';
 import { listBooks, listContinueReading, type Book, type Filter, type SortKey } from '@/entities/book/db';
 
 export function useLibrary(search: string, filter: Filter, sort: SortKey) {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [items, setItems] = useState<LibraryItem[]>([]);
   const [continueList, setContinueList] = useState<Book[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     const [all, cont] = await Promise.all([listBooks({ search, filter, sort }), listContinueReading()]);
-    setBooks(all);
+    setItems(groupBySeries(all));
     setContinueList(cont);
     setLoaded(true);
   }, [search, filter, sort]);
@@ -23,5 +24,5 @@ export function useLibrary(search: string, filter: Filter, sort: SortKey) {
     }, [refresh]),
   );
 
-  return { books, continueList, loaded, refresh };
+  return { items, continueList, loaded, refresh };
 }

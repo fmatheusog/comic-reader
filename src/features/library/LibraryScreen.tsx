@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BookActionsModal } from '@/features/library/BookActionsModal';
+import { BookActionsModal } from '@/entities/book/ui/BookActionsModal';
 import { BookCard } from '@/entities/book/ui/BookCard';
-import { BookEditModal } from '@/features/library/BookEditModal';
+import { SeriesCard } from './SeriesCard';
+import { BookEditModal } from '@/entities/book/ui/BookEditModal';
 import { deleteBookRow, setFinished, updateBookInfo, type Book, type Filter, type SortKey } from '@/entities/book/db';
 import { useLibrary } from '@/features/library/useLibrary';
 import { t } from '@/shared/i18n/pt';
@@ -40,7 +41,7 @@ export default function LibraryScreen() {
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const { books, continueList, loaded, refresh } = useLibrary(search, filter, sort);
+  const { items, continueList, loaded, refresh } = useLibrary(search, filter, sort);
 
   const sidePad = Math.max(16, insets.left + 16, insets.right + 16);
   const columns = Math.max(3, Math.floor((width - sidePad * 2 + GAP) / (130 + GAP)));
@@ -137,15 +138,19 @@ export default function LibraryScreen() {
 
       <FlatList
         key={columns}
-        data={books}
+        data={items}
         numColumns={columns}
-        keyExtractor={(b) => b.id}
+        keyExtractor={(i) => (i.kind === 'series' ? `series:${i.key}` : i.book.id)}
         ListHeaderComponent={header}
         contentContainerStyle={{ paddingHorizontal: sidePad, paddingBottom: insets.bottom + 24, gap: GAP }}
         columnWrapperStyle={{ gap: GAP }}
-        renderItem={({ item }) => (
-          <BookCard book={item} width={cardWidth} onPress={() => open(item)} onLongPress={() => setSelected(item)} />
-        )}
+        renderItem={({ item }) =>
+          item.kind === 'series' ? (
+            <SeriesCard group={item} width={cardWidth} onPress={() => router.push(`/series/${encodeURIComponent(item.name)}`)} />
+          ) : (
+            <BookCard book={item.book} width={cardWidth} onPress={() => open(item.book)} onLongPress={() => setSelected(item.book)} />
+          )
+        }
         ListEmptyComponent={
           loaded ? (
             <View style={styles.empty}>
