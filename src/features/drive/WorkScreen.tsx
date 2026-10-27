@@ -4,10 +4,11 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/shared/i18n/pt';
+import { formatBytes } from '@/shared/utils/bytes';
 import { useAppTheme } from '@/shared/theme';
 
 import { loadCatalog } from './catalogStore';
-import { formatBytes, pendingFiles, workProgress, type CatalogFile, type Work } from './model';
+import { pendingFiles, workProgress, type CatalogFile, type Work } from './model';
 import { useDriveImport } from './useDriveImport';
 import { useImported } from './useImported';
 

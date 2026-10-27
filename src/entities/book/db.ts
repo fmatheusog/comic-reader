@@ -235,6 +235,13 @@ export async function updateBookMeta(
   );
 }
 
+/** Livros e capítulos já lidos. */
+export async function listFinishedBooks(): Promise<Book[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Row>('SELECT * FROM books WHERE finished = 1');
+  return rows.map(toBook);
+}
+
 /** Ids de origem (Drive) dos livros já importados. */
 export async function listSourceIds(): Promise<Set<string>> {
   const db = await getDb();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorks, classifyDriveError, formatBytes, ignoredKey, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
+import { buildWorks, classifyDriveError, ignoredKey, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
 
 test('pastas e arquivos suportados viram entradas', () => {
   assert.deepEqual(toEntry({ id: '1', name: 'Obra', mimeType: 'application/vnd.google-apps.folder' }), {
@@ -49,9 +49,6 @@ test('consulta escapa aspas e barras no id', () => {
 test('extensões e tamanhos', () => {
   assert.equal(formatFromName('x.EPUB'), 'epub');
   assert.equal(formatFromName('x.zip'), null);
-  assert.equal(formatBytes(null), '');
-  assert.equal(formatBytes(512), '1 KB');
-  assert.equal(formatBytes(5 * 1024 * 1024), '5.0 MB');
 });
 
 const f = (name: string) => ({ id: `id-${name}`, name, format: 'cbz' as const, size: null });

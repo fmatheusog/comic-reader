@@ -7,6 +7,8 @@ import { t } from '@/shared/i18n/pt';
 import { updateSettings, useSettings } from '@/shared/settings/store';
 import { useAppTheme } from '@/shared/theme';
 
+import { StorageSection } from './StorageSection';
+
 export default function SettingsScreen() {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -42,6 +44,7 @@ export default function SettingsScreen() {
           onChange={(v) => updateSettings({ dualPage: v === 'on' })}
         />
         <Text style={{ color: theme.textMuted, marginTop: 16 }}>{t.mangaHint}</Text>
+        <StorageSection />
       </ScrollView>
     </View>
   );
