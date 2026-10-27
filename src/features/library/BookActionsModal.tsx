@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Book } from '@/db/books';
-import { t } from '@/i18n/pt';
-import { useAppTheme } from '@/theme';
+import type { Book } from '@/entities/book/db';
+import { t } from '@/shared/i18n/pt';
+import { useAppTheme } from '@/shared/theme';
 
 type Props = {
   book: Book | null;

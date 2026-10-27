@@ -6,17 +6,17 @@ import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView as BaseWebView, type WebViewMessageEvent, type WebViewProps } from 'react-native-webview';
 
-import type { Book } from '@/db/books';
-import { parsePosition, useSaveProgress } from '@/hooks/useSaveProgress';
-import { t } from '@/i18n/pt';
-import { loadEpub, readChapter, spineIndexOf, type EpubBook } from '@/services/epub';
-import { buildChapterHtml, readerCss } from '@/services/epubHtml';
-import { dirOf, resolveHref } from '@/services/epubParse';
-import { useSettings } from '@/state/settings';
-import { useAppTheme } from '@/theme';
+import type { Book } from '@/entities/book/db';
+import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
+import { t } from '@/shared/i18n/pt';
+import { loadEpub, readChapter, spineIndexOf, type EpubBook } from '@/entities/book/formats/epub';
+import { buildChapterHtml, readerCss } from '@/entities/book/formats/epubHtml';
+import { dirOf, resolveHref } from '@/entities/book/formats/epubParse';
+import { useSettings } from '@/shared/settings/store';
+import { useAppTheme } from '@/shared/theme';
 
 import { ChromeButton, ReaderChrome } from './ReaderChrome';
-import { ReadingSettingsSheet } from './ReadingSettingsSheet';
+import { ReadingSettingsSheet } from '@/shared/settings/ReadingSettingsSheet';
 
 // os tipos do react-native-webview 14 não declaram o ref que o componente aceita em runtime
 type WebViewHandle = { injectJavaScript: (script: string) => void };

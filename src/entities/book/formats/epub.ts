@@ -12,7 +12,7 @@ import {
   type EpubPackage,
   type TocEntry,
 } from './epubParse';
-import { bookDir, relPath, stripScheme } from './storage';
+import { bookDir, relPath, stripScheme } from '@/entities/book/storage';
 
 export type EpubBook = {
   rootUri: string;

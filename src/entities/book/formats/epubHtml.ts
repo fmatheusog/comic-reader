@@ -1,5 +1,5 @@
-import type { Settings } from '@/state/settings';
-import type { Theme } from '@/theme';
+import type { Settings } from '@/shared/settings/store';
+import type { Theme } from '@/shared/theme';
 
 import type { ChapterContent } from './epub';
 

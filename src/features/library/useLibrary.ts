@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { listBooks, listContinueReading, type Book, type Filter, type SortKey } from '@/db/books';
+import { listBooks, listContinueReading, type Book, type Filter, type SortKey } from '@/entities/book/db';
 
 export function useLibrary(search: string, filter: Filter, sort: SortKey) {
   const [books, setBooks] = useState<Book[]>([]);

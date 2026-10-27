@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildSpreads, spreadIndexOf } from '../src/utils/spreads.ts';
+import { buildSpreads, spreadIndexOf } from '../src/features/reader/spreads.ts';
 
 test('modo simples: uma página por folha', () => {
   assert.deepEqual(buildSpreads(3, false), [[0], [1], [2]]);

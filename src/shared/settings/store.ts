@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { getDb } from '@/db';
+import { getDb } from '@/shared/db';
 
 export type ThemePref = 'system' | 'light' | 'sepia' | 'dark';
 

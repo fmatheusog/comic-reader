@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { parseComicInfo } from '../src/services/comicInfo.ts';
+import { parseComicInfo } from '../src/entities/book/formats/comicInfo.ts';
 
 test('detecta mangá da direita para a esquerda', () => {
   const info = parseComicInfo('<ComicInfo><Title>Cap 1</Title><Manga>YesAndRightToLeft</Manga></ComicInfo>');

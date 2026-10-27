@@ -1,10 +1,10 @@
 import { Directory, File } from 'expo-file-system';
 import { unzip } from 'react-native-zip-archive';
 
-import { naturalCompare } from '@/utils/naturalSort';
+import { naturalCompare } from '@/entities/book/formats/naturalSort';
 
 import { parseComicInfo, type ComicInfo } from './comicInfo';
-import { IMAGE_EXT, bookDir, listFilesRecursive, relPath, stripScheme } from './storage';
+import { IMAGE_EXT, bookDir, listFilesRecursive, relPath, stripScheme } from '@/entities/book/storage';
 
 export type ExtractedCbz = {
   /** Caminhos relativos (a Paths.document) das páginas, em ordem natural. */

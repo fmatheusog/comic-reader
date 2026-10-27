@@ -5,10 +5,10 @@ import { useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Pdf, { type PdfRef } from 'react-native-pdf';
 
-import { setRtl as saveRtl, updateBookMeta, type Book } from '@/db/books';
-import { parsePosition, useSaveProgress } from '@/hooks/useSaveProgress';
-import { t } from '@/i18n/pt';
-import { resolveUri } from '@/services/storage';
+import { setRtl as saveRtl, updateBookMeta, type Book } from '@/entities/book/db';
+import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
+import { t } from '@/shared/i18n/pt';
+import { resolveUri } from '@/entities/book/storage';
 
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 

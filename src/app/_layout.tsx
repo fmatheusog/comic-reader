@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { loadSettings } from '@/state/settings';
-import { useAppTheme } from '@/theme';
+import { loadSettings } from '@/shared/settings/store';
+import { useAppTheme } from '@/shared/theme';
 
 export default function RootLayout() {
   const theme = useAppTheme();

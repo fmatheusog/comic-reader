@@ -12,7 +12,7 @@ import {
   resolvePath,
   sanitizeChapter,
   splitChapter,
-} from '../src/services/epubParse.ts';
+} from '../src/entities/book/formats/epubParse.ts';
 
 const png = Buffer.from('89504e470d0a1a0a', 'hex');
 

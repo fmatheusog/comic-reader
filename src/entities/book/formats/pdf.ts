@@ -1,7 +1,7 @@
 import { File } from 'expo-file-system';
 import PdfThumbnail from 'react-native-pdf-thumbnail';
 
-import { bookDir, relPath } from './storage';
+import { bookDir, relPath } from '@/entities/book/storage';
 
 /** Renderiza a primeira página do PDF como capa. Se falhar, a biblioteca mostra o título no lugar. */
 export async function createPdfCover(id: string, pdfUri: string): Promise<string | null> {

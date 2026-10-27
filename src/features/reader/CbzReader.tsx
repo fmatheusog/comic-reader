@@ -5,13 +5,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { setRtl as saveRtl, type Book } from '@/db/books';
-import { parsePosition, useSaveProgress } from '@/hooks/useSaveProgress';
-import { t } from '@/i18n/pt';
-import { readExtracted } from '@/services/cbz';
-import { resolveUri } from '@/services/storage';
-import { updateSettings, useSettings } from '@/state/settings';
-import { buildSpreads, spreadIndexOf } from '@/utils/spreads';
+import { setRtl as saveRtl, type Book } from '@/entities/book/db';
+import { parsePosition, useSaveProgress } from '@/features/reader/useSaveProgress';
+import { t } from '@/shared/i18n/pt';
+import { readExtracted } from '@/entities/book/formats/cbz';
+import { resolveUri } from '@/entities/book/storage';
+import { updateSettings, useSettings } from '@/shared/settings/store';
+import { buildSpreads, spreadIndexOf } from '@/features/reader/spreads';
 
 import { ChromeButton, ReaderChrome, SeekBar } from './ReaderChrome';
 import { ZoomableView } from './ZoomableView';

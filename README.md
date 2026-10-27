@@ -97,15 +97,19 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk`. Por padrã
 ## Estrutura
 
 ```
-src/app/            rotas (expo-router): biblioteca, leitor/[id], ajustes
-src/components/     BookCard, leitores (Cbz/Pdf/Epub), ZoomableView, barras do leitor
-src/db/             SQLite: migrações e consultas
-src/services/       importação, CBZ, PDF, EPUB (parser puro + I/O), armazenamento
-src/state/          ajustes persistidos
-src/i18n/ src/theme/ textos pt-BR e temas
-scripts/            gerador de arquivos de exemplo
-tests/              testes dos módulos puros
+src/app/                rotas do expo-router; só reexportam as telas das features
+src/features/library/   biblioteca: tela, busca/filtros, modais de ação e edição, importação
+src/features/reader/    leitor: telas CBZ/PDF/EPUB, zoom, barras, progresso
+src/features/settings/  tela de ajustes
+src/entities/book/      livro: tipo e consultas SQLite, armazenamento, BookCard,
+                        formatos (CBZ, PDF, EPUB: parser puro + I/O)
+src/shared/             db (conexão e migrações), i18n pt-BR, temas, ajustes persistidos
+scripts/                gerador de arquivos de exemplo
+tests/                  testes dos módulos puros
 ```
+
+Dependências só descem: `app → features → entities → shared`, e uma feature não
+importa outra.
 
 ## Limitações conhecidas
 

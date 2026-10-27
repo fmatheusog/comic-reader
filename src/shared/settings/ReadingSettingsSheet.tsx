@@ -1,9 +1,9 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { t } from '@/i18n/pt';
-import { updateSettings, useSettings, type Settings, type ThemePref } from '@/state/settings';
-import { useAppTheme } from '@/theme';
+import { t } from '@/shared/i18n/pt';
+import { updateSettings, useSettings, type Settings, type ThemePref } from '@/shared/settings/store';
+import { useAppTheme } from '@/shared/theme';
 
 const THEMES: ThemePref[] = ['system', 'light', 'sepia', 'dark'];
 

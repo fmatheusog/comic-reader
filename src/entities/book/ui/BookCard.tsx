@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { Book } from '@/db/books';
-import { t } from '@/i18n/pt';
-import { resolveUri } from '@/services/storage';
-import { useAppTheme } from '@/theme';
+import type { Book } from '@/entities/book/db';
+import { t } from '@/shared/i18n/pt';
+import { resolveUri } from '@/entities/book/storage';
+import { useAppTheme } from '@/shared/theme';
 
 type Props = {
   book: Book;

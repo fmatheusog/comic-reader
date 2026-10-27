@@ -1,6 +1,6 @@
 import { useColorScheme } from 'react-native';
 
-import { useSettings } from '@/state/settings';
+import { useSettings } from '@/shared/settings/store';
 
 export type ThemeName = 'light' | 'sepia' | 'dark';
 

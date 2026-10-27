@@ -1,12 +1,12 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 
-import { deleteBookRow, insertBook, type BookFormat } from '@/db/books';
+import { deleteBookRow, insertBook, type BookFormat } from '@/entities/book/db';
 
-import { extractCbz } from './cbz';
-import { extractEpub, readEpubMeta } from './epub';
-import { createPdfCover } from './pdf';
-import { bookDir, newId, removeBookFiles } from './storage';
+import { extractCbz } from '@/entities/book/formats/cbz';
+import { extractEpub, readEpubMeta } from '@/entities/book/formats/epub';
+import { createPdfCover } from '@/entities/book/formats/pdf';
+import { bookDir, newId, removeBookFiles } from '@/entities/book/storage';
 
 export type ImportOutcome = { name: string; ok: boolean; error?: string };
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { naturalSort } from '../src/utils/naturalSort.ts';
+import { naturalSort } from '../src/entities/book/formats/naturalSort.ts';
 
 test('ordena números dentro do nome', () => {
   assert.deepEqual(naturalSort(['p10.jpg', 'p2.jpg', 'p1.jpg']), ['p1.jpg', 'p2.jpg', 'p10.jpg']);

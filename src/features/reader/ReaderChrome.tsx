@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { t } from '@/i18n/pt';
+import { t } from '@/shared/i18n/pt';
 
 type Props = {
   visible: boolean;

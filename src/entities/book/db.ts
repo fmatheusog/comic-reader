@@ -1,4 +1,4 @@
-import { getDb } from './index';
+import { getDb } from '@/shared/db';
 
 export type BookFormat = 'epub' | 'cbz' | 'pdf';
 export type Filter = 'all' | 'reading' | 'new' | 'read';
