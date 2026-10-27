@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -12,14 +11,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Book, BookInfo } from '@/entities/book/db';
+import { parseChapterNumber, validateInfo } from '@/entities/book/series';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { t } from '@/shared/i18n/pt';
 import { useAppTheme } from '@/shared/theme';
-
-/** Aceita vírgula decimal; vazio ou inválido vira null. */
-const parseNumber = (text: string) => {
-  const n = Number(text.trim().replace(',', '.'));
-  return text.trim() && Number.isFinite(n) ? n : null;
-};
 
 type Props = {
   book: Book | null;
@@ -36,16 +31,8 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
   const [series, setSeries] = useState(book?.series ?? '');
   const [number, setNumber] = useState(book?.seriesNumber != null ? String(book.seriesNumber) : '');
 
-  // Sem KeyboardAvoidingView: ele brigava com o redimensionamento da janela no Android e a tela tremia.
-  const [keyboard, setKeyboard] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboard(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
+  const keyboard = useKeyboardHeight();
+  const error = validateInfo({ title, series, number });
 
   const inputStyle = [styles.input, { color: theme.text, borderColor: theme.border }];
 
@@ -101,14 +88,16 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
               style={[...inputStyle, styles.multiline]}
             />
           </ScrollView>
+          {error && <Text style={styles.error}>{error === 'title' ? t.titleRequired : t.numberRequired}</Text>}
           <View style={styles.row}>
             <Pressable onPress={onClose} accessibilityRole="button" style={styles.action}>
               <Text style={[styles.actionText, { color: theme.text }]}>{t.cancel}</Text>
             </Pressable>
             <Pressable
-              onPress={() => title.trim() && onSave({ title, author, description, series, seriesNumber: parseNumber(number) })}
+              onPress={() => !error && onSave({ title, author, description, series, seriesNumber: parseChapterNumber(number) })}
               accessibilityRole="button"
-              style={styles.action}>
+              accessibilityState={{ disabled: !!error }}
+              style={[styles.action, error ? { opacity: 0.4 } : null]}>
               <Text style={[styles.actionText, { color: theme.accent }]}>{t.save}</Text>
             </Pressable>
           </View>
@@ -135,6 +124,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '600', marginTop: 8 },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 16, marginTop: 4 },
   multiline: { minHeight: 110 },
+  error: { color: '#D93025', fontSize: 12, marginTop: 8 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   action: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 },
   actionText: { fontSize: 16, fontWeight: '600' },

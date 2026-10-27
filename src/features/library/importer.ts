@@ -2,18 +2,29 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 
 import { deleteBookRow, insertBook, type BookFormat } from '@/entities/book/db';
-import { cleanSeriesName, guessChapterNumber, guessSeries } from '@/entities/book/series';
-
 import { extractCbz } from '@/entities/book/formats/cbz';
 import { extractEpub, readEpubMeta } from '@/entities/book/formats/epub';
 import { createPdfCover } from '@/entities/book/formats/pdf';
+import { cleanSeriesName, guessChapterNumber, guessSeries, parseChapterNumber } from '@/entities/book/series';
 import { bookDir, newId, removeBookFiles } from '@/entities/book/storage';
 
 export type ImportOutcome = { name: string; ok: boolean; error?: string };
 
+/** Um arquivo já copiado para o cache, com os dados que o usuário confere antes de importar. */
+export type ImportDraft = {
+  uri: string;
+  name: string;
+  format: BookFormat;
+  title: string;
+  /** Obra; vazio = livro avulso */
+  series: string;
+  /** Número do capítulo, como digitado (obrigatório quando há obra) */
+  number: string;
+};
+
 const FORMAT_BY_EXT: Record<string, BookFormat> = { epub: 'epub', cbz: 'cbz', pdf: 'pdf' };
 
-const formatOf = (name: string): BookFormat | null =>
+export const formatOf = (name: string): BookFormat | null =>
   FORMAT_BY_EXT[name.split('.').pop()?.toLowerCase() ?? ''] ?? null;
 
 const titleOf = (name: string) =>
@@ -22,36 +33,63 @@ const titleOf = (name: string) =>
     .replace(/[_]+/g, ' ')
     .trim();
 
-/** Abre o seletor de arquivos do Android e importa o que for EPUB, PDF ou CBZ. */
-export async function pickAndImport(): Promise<ImportOutcome[]> {
+/**
+ * Monta o rascunho de um arquivo com o que dá para adivinhar pelo nome.
+ * `seriesHint` é uma obra já conhecida (por exemplo, o nome da pasta de origem) e tem prioridade.
+ */
+export function buildDraft(uri: string, name: string, format: BookFormat, seriesHint?: string): ImportDraft {
+  const hint = seriesHint ? cleanSeriesName(seriesHint) : '';
+  const guess = guessSeries(name);
+  const series = hint || guess?.series || '';
+  const number = series ? ((hint ? guessChapterNumber(name) : guess?.number) ?? guessChapterNumber(name)) : null;
+  return { uri, name, format, title: titleOf(name), series, number: number == null ? '' : String(number) };
+}
+
+/** Abre o seletor de arquivos do Android e devolve rascunhos dos EPUB, PDF e CBZ escolhidos. */
+export async function pickDrafts(): Promise<{ drafts: ImportDraft[]; skipped: number }> {
   const result = await DocumentPicker.getDocumentAsync({
     type: '*/*',
     multiple: true,
     copyToCacheDirectory: true,
   });
-  if (result.canceled) return [];
+  if (result.canceled) return { drafts: [], skipped: 0 };
 
-  const outcomes: ImportOutcome[] = [];
+  const drafts: ImportDraft[] = [];
+  let skipped = 0;
   for (const asset of result.assets) {
-    outcomes.push(await importFile(asset.uri, asset.name));
+    const format = formatOf(asset.name);
+    if (!format) {
+      skipped++;
+      new File(asset.uri).delete();
+      continue;
+    }
+    drafts.push(buildDraft(asset.uri, asset.name, format));
   }
+  return { drafts, skipped };
+}
+
+/** Descarta os arquivos do cache de rascunhos que não serão importados. */
+export function discardDrafts(drafts: ImportDraft[]) {
+  for (const d of drafts) {
+    try {
+      const f = new File(d.uri);
+      if (f.exists) f.delete();
+    } catch {
+      // o cache pode ter sido limpo pelo sistema
+    }
+  }
+}
+
+export async function importDrafts(drafts: ImportDraft[]): Promise<ImportOutcome[]> {
+  const outcomes: ImportOutcome[] = [];
+  for (const draft of drafts) outcomes.push(await importDraft(draft));
   return outcomes;
 }
 
-export type ImportOptions = {
-  /** Obra já conhecida (por exemplo, o nome da pasta de origem); tem prioridade sobre o nome do arquivo */
-  series?: string;
-};
-
-/** Importa um arquivo local (copiado para o cache) para a biblioteca. */
-export async function importFile(uri: string, name: string, options: ImportOptions = {}): Promise<ImportOutcome> {
-  const format = formatOf(name);
-  const picked = new File(uri);
-  if (!format) {
-    picked.delete();
-    return { name, ok: false, error: 'unsupported' };
-  }
-
+/** Importa um rascunho já conferido para a biblioteca. */
+export async function importDraft(draft: ImportDraft): Promise<ImportOutcome> {
+  const { name, format } = draft;
+  const picked = new File(draft.uri);
   const id = newId();
   try {
     const dir = bookDir(id);
@@ -59,10 +97,9 @@ export async function importFile(uri: string, name: string, options: ImportOptio
     const original = new File(dir, `book.${format}`);
     await picked.copy(original);
 
-    let title = titleOf(name);
+    let title = draft.title.trim();
     let author: string | null = null;
     let description: string | null = null;
-    let comicSeries: { series?: string; number?: number } | undefined;
     let coverPath: string | null = null;
     let rtl = false;
     let pageCount: number | null = null;
@@ -73,10 +110,9 @@ export async function importFile(uri: string, name: string, options: ImportOptio
       coverPath = pages[0];
       pageCount = pages.length;
       rtl = info?.rtl ?? false;
-      // o título vem do nome do arquivo (que o usuário organiza); o ComicInfo só completa o resto
+      // título, obra e número vêm da revisão; o ComicInfo só completa o resto
       author = info?.writer ?? null;
       description = info?.summary ?? null;
-      comicSeries = info ? { series: info.series, number: info.number } : undefined;
       // as páginas já estão extraídas; o arquivo original só ocuparia espaço em dobro
       original.delete();
     }
@@ -84,7 +120,8 @@ export async function importFile(uri: string, name: string, options: ImportOptio
     if (format === 'epub') {
       await extractEpub(id, original.uri);
       const meta = await readEpubMeta(id);
-      title = meta.title ?? title;
+      // sem edição do usuário, vale o título que está dentro do EPUB
+      if (title === titleOf(name)) title = meta.title ?? title;
       author = meta.author;
       coverPath = meta.coverPath;
       pageCount = meta.chapters;
@@ -93,13 +130,8 @@ export async function importFile(uri: string, name: string, options: ImportOptio
 
     if (format === 'pdf') coverPath = await createPdfCover(id, original.uri);
 
-    // obra: pasta de origem > nome do arquivo > ComicInfo.xml
-    const guess = guessSeries(name);
-    const hint = options.series ? cleanSeriesName(options.series) : '';
-    const series = hint || guess?.series || (comicSeries?.series ? cleanSeriesName(comicSeries.series) : '') || null;
-    const seriesNumber = series
-      ? ((hint ? guessChapterNumber(name) : guess?.number) ?? guessChapterNumber(name) ?? comicSeries?.number ?? null)
-      : null;
+    const series = draft.series.trim() ? cleanSeriesName(draft.series) : null;
+    const seriesNumber = series ? parseChapterNumber(draft.number) : null;
 
     await insertBook({ id, title, author, description, series, seriesNumber, format, coverPath, rtl, pageCount });
     return { name, ok: true };

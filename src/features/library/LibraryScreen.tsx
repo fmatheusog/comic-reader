@@ -20,7 +20,8 @@ import { BookEditModal } from '@/entities/book/ui/BookEditModal';
 import { deleteBookRow, setFinished, updateBookInfo, type Book, type Filter, type SortKey } from '@/entities/book/db';
 import { useLibrary } from '@/features/library/useLibrary';
 import { t } from '@/shared/i18n/pt';
-import { pickAndImport } from '@/features/library/importer';
+import { discardDrafts, importDrafts, pickDrafts, type ImportDraft } from '@/features/library/importer';
+import { ImportReviewModal } from './ImportReviewModal';
 import { removeBookFiles } from '@/entities/book/storage';
 import { useAppTheme } from '@/shared/theme';
 
@@ -39,6 +40,8 @@ export default function LibraryScreen() {
   const [selected, setSelected] = useState<Book | null>(null);
   const [editing, setEditing] = useState<Book | null>(null);
   const [importing, setImporting] = useState(false);
+  const [reviewing, setReviewing] = useState<ImportDraft[] | null>(null);
+  const [batch, setBatch] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
 
   const { items, continueList, loaded, refresh } = useLibrary(search, filter, sort);
@@ -49,20 +52,39 @@ export default function LibraryScreen() {
 
   const open = (b: Book) => router.push(`/reader/${b.id}`);
 
-  const doImport = async () => {
+  const showMessage = (text: string) => {
+    setMessage(text);
+    setTimeout(() => setMessage(null), 8000);
+  };
+
+  // 1) escolhe os arquivos e abre a revisão
+  const startImport = async () => {
+    const { drafts, skipped } = await pickDrafts();
+    if (skipped) showMessage(t.skippedFiles(skipped));
+    if (drafts.length) {
+      setBatch((n) => n + 1);
+      setReviewing(drafts);
+    }
+  };
+
+  // 2) depois de conferir, importa de fato
+  const confirmImport = async (drafts: ImportDraft[]) => {
     setImporting(true);
     try {
-      const outcomes = await pickAndImport();
-      if (outcomes.length) {
-        const ok = outcomes.filter((o) => o.ok).length;
-        const firstError = outcomes.find((o) => !o.ok)?.error;
-        setMessage(t.importDone(ok, outcomes.length - ok) + (firstError ? ` (${firstError})` : ''));
-        setTimeout(() => setMessage(null), 8000);
-      }
+      const outcomes = await importDrafts(drafts);
+      const ok = outcomes.filter((o) => o.ok).length;
+      const firstError = outcomes.find((o) => !o.ok)?.error;
+      showMessage(t.importDone(ok, outcomes.length - ok) + (firstError ? ` (${firstError})` : ''));
+      setReviewing(null);
       await refresh();
     } finally {
       setImporting(false);
     }
+  };
+
+  const cancelImport = () => {
+    if (reviewing) discardDrafts(reviewing);
+    setReviewing(null);
   };
 
   const chip = (label: string, active: boolean, onPress: () => void) => (
@@ -109,7 +131,7 @@ export default function LibraryScreen() {
             <Text style={{ color: theme.text, fontSize: 22 }}>⚙</Text>
           </Pressable>
           <Pressable
-            onPress={doImport}
+            onPress={startImport}
             disabled={importing}
             accessibilityRole="button"
             style={[styles.importBtn, { backgroundColor: theme.accent }]}>
@@ -163,6 +185,14 @@ export default function LibraryScreen() {
             </View>
           ) : undefined
         }
+      />
+
+      <ImportReviewModal
+        key={`review-${batch}`}
+        drafts={reviewing}
+        busy={importing}
+        onCancel={cancelImport}
+        onConfirm={confirmImport}
       />
 
       <BookActionsModal
