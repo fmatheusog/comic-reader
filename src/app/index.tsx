@@ -161,7 +161,7 @@ export default function LibraryScreen() {
       />
 
       <BookActionsModal
-        key={selected?.id ?? 'none'}
+        key={selected?.id ?? 'actions-none'}
         book={selected}
         onClose={() => setSelected(null)}
         onEdit={() => {
@@ -184,7 +184,7 @@ export default function LibraryScreen() {
       />
 
       <BookEditModal
-        key={editing?.id ?? 'none'}
+        key={editing?.id ?? 'edit-none'}
         book={editing}
         onClose={() => setEditing(null)}
         onSave={async (info) => {

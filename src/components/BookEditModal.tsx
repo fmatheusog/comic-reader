@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,15 +28,23 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
   const [author, setAuthor] = useState(book?.author ?? '');
   const [description, setDescription] = useState(book?.description ?? '');
 
+  // Sem KeyboardAvoidingView: ele brigava com o redimensionamento da janela no Android e a tela tremia.
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboard(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   const inputStyle = [styles.input, { color: theme.text, borderColor: theme.border }];
 
   return (
     <Modal visible={!!book} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t.close} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        pointerEvents="box-none"
-        style={styles.avoid}>
+      <View pointerEvents="box-none" style={[styles.avoid, { paddingBottom: keyboard }]}>
         <View
           style={[
             styles.sheet,
@@ -81,7 +88,7 @@ export function BookEditModal({ book, onClose, onSave }: Props) {
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
