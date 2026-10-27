@@ -52,8 +52,9 @@ export default function LibraryScreen() {
       const outcomes = await pickAndImport();
       if (outcomes.length) {
         const ok = outcomes.filter((o) => o.ok).length;
-        setMessage(t.importDone(ok, outcomes.length - ok));
-        setTimeout(() => setMessage(null), 4000);
+        const firstError = outcomes.find((o) => !o.ok)?.error;
+        setMessage(t.importDone(ok, outcomes.length - ok) + (firstError ? ` (${firstError})` : ''));
+        setTimeout(() => setMessage(null), 8000);
       }
       await refresh();
     } finally {

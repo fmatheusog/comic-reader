@@ -50,7 +50,7 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
     const dir = bookDir(id);
     dir.create({ intermediates: true, idempotent: true });
     const original = new File(dir, `book.${format}`);
-    picked.copy(original);
+    await picked.copy(original);
 
     let title = titleOf(name);
     let author: string | null = null;
@@ -85,6 +85,7 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
     await insertBook({ id, title, author, format, coverPath, rtl, pageCount });
     return { name, ok: true };
   } catch (e) {
+    console.warn(`Falha ao importar "${name}":`, e);
     removeBookFiles(id);
     await deleteBookRow(id).catch(() => {});
     return { name, ok: false, error: e instanceof Error ? e.message : String(e) };
