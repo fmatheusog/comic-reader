@@ -4,6 +4,7 @@ export type ComicInfo = {
   title?: string;
   series?: string;
   writer?: string;
+  summary?: string;
   manga: boolean;
   /** Mangá lido da direita para a esquerda */
   rtl: boolean;
@@ -18,6 +19,7 @@ export function parseComicInfo(xml: string): ComicInfo {
     title: str(doc.Title),
     series: str(doc.Series),
     writer: str(doc.Writer),
+    summary: str(doc.Summary),
     manga: manga != null && manga !== 'No' && manga !== 'Unknown',
     rtl: manga === 'YesAndRightToLeft',
   };

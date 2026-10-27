@@ -8,6 +8,7 @@ export type Book = {
   id: string;
   title: string;
   author: string | null;
+  description: string | null;
   format: BookFormat;
   coverPath: string | null;
   addedAt: number;
@@ -23,6 +24,7 @@ type Row = {
   id: string;
   title: string;
   author: string | null;
+  description: string | null;
   format: BookFormat;
   cover_path: string | null;
   added_at: number;
@@ -38,6 +40,7 @@ const toBook = (r: Row): Book => ({
   id: r.id,
   title: r.title,
   author: r.author,
+  description: r.description,
   format: r.format,
   coverPath: r.cover_path,
   addedAt: r.added_at,
@@ -49,16 +52,20 @@ const toBook = (r: Row): Book => ({
   pageCount: r.page_count,
 });
 
-export type NewBook = Pick<Book, 'id' | 'title' | 'author' | 'format' | 'coverPath' | 'rtl' | 'pageCount'>;
+export type NewBook = Pick<
+  Book,
+  'id' | 'title' | 'author' | 'description' | 'format' | 'coverPath' | 'rtl' | 'pageCount'
+>;
 
 export async function insertBook(b: NewBook) {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO books (id, title, author, format, cover_path, added_at, rtl, page_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO books (id, title, author, description, format, cover_path, added_at, rtl, page_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     b.id,
     b.title,
     b.author,
+    b.description,
     b.format,
     b.coverPath,
     Date.now(),
@@ -123,9 +130,18 @@ export async function saveProgress(id: string, progress: number, position: strin
   );
 }
 
-export async function renameBook(id: string, title: string) {
+export type BookInfo = Pick<Book, 'title' | 'author' | 'description'>;
+
+/** Edição manual dos metadados; campos vazios viram NULL. */
+export async function updateBookInfo(id: string, info: BookInfo) {
   const db = await getDb();
-  await db.runAsync('UPDATE books SET title = ? WHERE id = ?', title.trim(), id);
+  await db.runAsync(
+    'UPDATE books SET title = ?, author = ?, description = ? WHERE id = ?',
+    info.title.trim(),
+    info.author?.trim() || null,
+    info.description?.trim() || null,
+    id,
+  );
 }
 
 export async function setFinished(id: string, finished: boolean) {

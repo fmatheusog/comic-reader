@@ -54,6 +54,7 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
 
     let title = titleOf(name);
     let author: string | null = null;
+    let description: string | null = null;
     let coverPath: string | null = null;
     let rtl = false;
     let pageCount: number | null = null;
@@ -64,8 +65,9 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
       coverPath = pages[0];
       pageCount = pages.length;
       rtl = info?.rtl ?? false;
-      title = info?.series && info.title ? `${info.series} - ${info.title}` : (info?.title ?? title);
+      // o título vem do nome do arquivo (que o usuário organiza); o ComicInfo só completa o resto
       author = info?.writer ?? null;
+      description = info?.summary ?? null;
       // as páginas já estão extraídas; o arquivo original só ocuparia espaço em dobro
       original.delete();
     }
@@ -82,7 +84,7 @@ async function importOne(uri: string, name: string): Promise<ImportOutcome> {
 
     if (format === 'pdf') coverPath = await createPdfCover(id, original.uri);
 
-    await insertBook({ id, title, author, format, coverPath, rtl, pageCount });
+    await insertBook({ id, title, author, description, format, coverPath, rtl, pageCount });
     return { name, ok: true };
   } catch (e) {
     console.warn(`Falha ao importar "${name}":`, e);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Book } from '@/db/books';
@@ -9,18 +9,15 @@ import { useAppTheme } from '@/theme';
 type Props = {
   book: Book | null;
   onClose: () => void;
-  onRename: (title: string) => void;
+  onEdit: () => void;
   onToggleRead: () => void;
   onDelete: () => void;
 };
 
-export function BookActionsModal({ book, onClose, onRename, onToggleRead, onDelete }: Props) {
+export function BookActionsModal({ book, onClose, onEdit, onToggleRead, onDelete }: Props) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [title, setTitle] = useState(book?.title ?? '');
-
 
   const action = (label: string, onPress: () => void, danger = false) => (
     <Pressable key={label} onPress={onPress} accessibilityRole="button" style={styles.action}>
@@ -39,21 +36,7 @@ export function BookActionsModal({ book, onClose, onRename, onToggleRead, onDele
         <Text style={[styles.heading, { color: theme.text }]} numberOfLines={2}>
           {book?.title}
         </Text>
-        {renaming ? (
-          <>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              autoFocus
-              accessibilityLabel={t.renameTitle}
-              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-            />
-            <View style={styles.row}>
-              {action(t.cancel, () => setRenaming(false))}
-              {action(t.save, () => title.trim() && onRename(title))}
-            </View>
-          </>
-        ) : confirmDelete ? (
+        {confirmDelete ? (
           <>
             <Text style={{ color: theme.textMuted, marginVertical: 8 }}>{t.deleteBody(book?.title ?? '')}</Text>
             <View style={styles.row}>
@@ -63,7 +46,7 @@ export function BookActionsModal({ book, onClose, onRename, onToggleRead, onDele
           </>
         ) : (
           <>
-            {action(t.rename, () => setRenaming(true))}
+            {action(t.editInfo, onEdit)}
             {action(book?.finished ? t.markUnread : t.markRead, onToggleRead)}
             {action(t.delete, () => setConfirmDelete(true), true)}
           </>
@@ -87,7 +70,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   heading: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 16, marginVertical: 8 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   action: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
   actionText: { fontSize: 16, fontWeight: '500' },

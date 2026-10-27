@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookActionsModal } from '@/components/BookActionsModal';
 import { BookCard } from '@/components/BookCard';
-import { deleteBookRow, renameBook, setFinished, type Book, type Filter, type SortKey } from '@/db/books';
+import { BookEditModal } from '@/components/BookEditModal';
+import { deleteBookRow, setFinished, updateBookInfo, type Book, type Filter, type SortKey } from '@/db/books';
 import { useLibrary } from '@/hooks/useLibrary';
 import { t } from '@/i18n/pt';
 import { pickAndImport } from '@/services/importer';
@@ -35,6 +36,7 @@ export default function LibraryScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
   const [selected, setSelected] = useState<Book | null>(null);
+  const [editing, setEditing] = useState<Book | null>(null);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -162,10 +164,9 @@ export default function LibraryScreen() {
         key={selected?.id ?? 'none'}
         book={selected}
         onClose={() => setSelected(null)}
-        onRename={async (title) => {
-          if (selected) await renameBook(selected.id, title);
+        onEdit={() => {
+          setEditing(selected);
           setSelected(null);
-          refresh();
         }}
         onToggleRead={async () => {
           if (selected) await setFinished(selected.id, !selected.finished);
@@ -178,6 +179,17 @@ export default function LibraryScreen() {
             await deleteBookRow(selected.id);
           }
           setSelected(null);
+          refresh();
+        }}
+      />
+
+      <BookEditModal
+        key={editing?.id ?? 'none'}
+        book={editing}
+        onClose={() => setEditing(null)}
+        onSave={async (info) => {
+          if (editing) await updateBookInfo(editing.id, info);
+          setEditing(null);
           refresh();
         }}
       />
