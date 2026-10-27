@@ -12,6 +12,7 @@ Uso pessoal, 100% offline: sem backend, sem conta, sem scraper. Você escolhe os
 - **Obras**: capítulos da mesma obra ficam juntos num único card na biblioteca; a tela da obra lista os capítulos em ordem, com progresso, botão Continuar/Começar e renomear obra (renomear para o nome de outra obra junta as duas). A obra e o nº do capítulo são detectados pelo nome do arquivo (`Obra - Chapter 12`, `Obra v03`, `Obra - 042`...) ou pelo `ComicInfo.xml`, e podem ser corrigidos em Editar informações. Livros que não parecem capítulo (`Dom Casmurro.epub`) ficam avulsos.
 - **Revisão na importação**: ao escolher arquivos, uma tela mostra título, obra e nº de cada um, já preenchidos pela detecção, para você corrigir antes de importar. Informando a obra, o número do capítulo é obrigatório (sem obra, o livro é avulso); a mesma regra vale em Editar informações. Dá para aplicar a mesma obra a todos os arquivos de uma vez.
 - **Filtros por obra**: Lendo/Novos/Lidos olham a obra inteira (Lida = todos os capítulos lidos; Nova = nenhum aberto; Lendo = o resto) e o card sempre mostra o total de capítulos. A busca por um capítulo traz a obra completa.
+- **Google Drive**: botão ☁ na biblioteca. Entra com a sua conta Google (acesso só de leitura), navega por "Compartilhados comigo" e "Meu Drive", e importa arquivos soltos ou pastas inteiras (inclusive subpastas). O nome da pasta vira a obra sugerida, você confere tudo na tela de revisão e o app baixa e importa um arquivo por vez, com progresso e cancelamento. O que já foi importado aparece marcado e é pulado.
 - **CBZ**: extração para o disco (sem carregar o arquivo na memória), ordenação natural das páginas, leitura de `ComicInfo.xml` (detecta mangá; autor e resumo viram os campos do livro), paginação horizontal, zoom com pinça e toque duplo que seguem o ponto tocado, duas páginas lado a lado com o aparelho deitado, sentido de leitura alternável.
 - **PDF**: leitor nativo (`react-native-pdf`), capa gerada da primeira página (`react-native-pdf-thumbnail`).
 - **EPUB**: um capítulo por vez numa WebView, com scripts removidos, CSS do app (tema, fonte, tamanho, espaçamento, margens), sumário, links internos, progresso por capítulo + posição de rolagem.
@@ -86,6 +87,23 @@ node scripts/make-icons.mjs
 
 Gera o ícone simples (livro aberto) em `assets/images/`: ícone, ícone adaptativo (fundo, primeiro plano e monocromático) e imagem da splash. Sem dependências; para trocar por uma arte própria, basta substituir esses arquivos.
 
+## Google Drive (configuração)
+
+O login é o do próprio Android (`@react-native-google-signin/google-signin`, API "original"), então **não há ID de cliente, chave ou segredo no código**: o Google identifica o app pelo nome do pacote (`br.fmatheusog.comicreader`) e pelo SHA-1 da chave que assina o APK. Para usar na sua conta:
+
+1. No Google Cloud, crie um projeto, ative a **Drive API** e configure a tela de consentimento OAuth (Externo; publique o app para o login não expirar a cada 7 dias).
+2. Crie um **cliente OAuth do tipo Android** com o pacote acima e o SHA-1 da sua chave: `keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android` (o release local usa a mesma chave de debug; APKs do EAS têm outra, veja `npx eas-cli credentials`).
+3. Recompile (`npm run android`): a biblioteca tem código nativo. O emulador precisa de uma imagem **com Google Play** e uma conta Google logada.
+
+Se o login falhar com "erro 10", o pacote ou o SHA-1 cadastrados não batem com os desta compilação.
+
+### Segurança
+
+- Escopo `drive.readonly`: o app só lê; não consegue alterar nem apagar nada no seu Drive.
+- O app **não guarda senha, token nem link do Drive**. O token de acesso (1 hora) fica com o Google Play Services e vai só no cabeçalho `Authorization`, nunca na URL. Tokens, URLs e ids de arquivo não são registrados em log nem mostrados em mensagens de erro.
+- No banco fica apenas o id do arquivo de origem de cada livro, para não importar duas vezes. Os downloads passam pelo cache e são apagados logo depois de importados.
+- `.gitignore` bloqueia chaves e credenciais (`*.keystore`, `*.jks`, `google-services.json`, `.env`...). Para revogar o acesso: <https://myaccount.google.com/permissions>.
+
 ## Gerando o APK
 
 ### Com EAS Build (nuvem)
@@ -123,10 +141,11 @@ src/app/                rotas do expo-router; só reexportam as telas das featur
 src/features/library/   biblioteca: tela, busca/filtros, importação com revisão
 src/features/reader/    leitor: telas CBZ/PDF/EPUB, zoom, barras, progresso
 src/features/series/    tela da obra: capítulos em ordem, continuar, renomear
+src/features/drive/     Google Drive: login, listagem, download e importação
 src/features/settings/  tela de ajustes
 src/entities/book/      livro: tipo e consultas SQLite, armazenamento, BookCard,
                         formatos (CBZ, PDF, EPUB: parser puro + I/O), detecção e agrupamento de obras,
-                        modais de ações e de edição do livro
+                        importador, revisão da importação, modais de ações e de edição
 src/shared/             db (conexão e migrações), i18n pt-BR, temas, ajustes persistidos, hooks
 scripts/                gerador de arquivos de exemplo e de ícones
 tests/                  testes dos módulos puros

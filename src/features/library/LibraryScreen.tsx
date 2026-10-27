@@ -124,6 +124,13 @@ export default function LibraryScreen() {
             {t.library}
           </Text>
           <Pressable
+            onPress={() => router.push('/drive')}
+            accessibilityRole="button"
+            accessibilityLabel={t.drive.open}
+            style={styles.gear}>
+            <Text style={{ color: theme.text, fontSize: 22 }}>☁</Text>
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/settings')}
             accessibilityRole="button"
             accessibilityLabel={t.settings}
