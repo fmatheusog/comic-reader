@@ -32,7 +32,8 @@
       "expo-sqlite",
       "expo-image",
       "expo-asset",
-      "react-native-blob-util"
+      "react-native-blob-util",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false,
