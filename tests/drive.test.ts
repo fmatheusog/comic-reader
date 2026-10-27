@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildWorks, chunk, classifyDriveError, formatBytes, ignoredKey, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, queryChildrenOf, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
+import { buildWorks, classifyDriveError, formatBytes, ignoredKey, formatFromName, isChapterFolderName, parseFolderId, pendingFiles, queryChildren, sortEntries, toEntry, workProgress } from '../src/features/drive/model.ts';
 
 test('pastas e arquivos suportados viram entradas', () => {
   assert.deepEqual(toEntry({ id: '1', name: 'Obra', mimeType: 'application/vnd.google-apps.folder' }), {
@@ -134,11 +134,6 @@ test('classifica erros da Drive API pelo motivo, sem depender do texto', () => {
   assert.equal(classifyDriveError(500, '').kind, 'http');
 });
 
-test('consulta em lote junta várias pastas com or e divide em lotes', () => {
-  assert.equal(queryChildrenOf(['a', "b'c"]), "('a' in parents or 'b\\'c' in parents) and trashed = false");
-  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
-  assert.deepEqual(chunk([], 3), []);
-});
 
 test('rótulo do que é ignorado: extensão ou tipo do Google', () => {
   assert.equal(ignoredKey({ name: 'cap 1.ZIP', mimeType: 'application/zip' }), '.zip');

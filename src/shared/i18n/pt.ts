@@ -99,8 +99,8 @@ export const t = {
     filters: { all: 'Todas', new: 'Novas', partial: 'Incompletas', complete: 'Completas' },
     allCategories: 'Todas as pastas',
     otherCategory: 'Outras',
-    summary: (works: number, files: number, date: string, seconds: number | null) =>
-      `${works} obra(s) · ${files} arquivo(s) · atualizado em ${date}${seconds != null ? ` (lido em ${seconds} s)` : ''}`,
+    summary: (works: number, files: number, date: string, seconds: number | null, folders: number | null) =>
+      `${works} obra(s) · ${files} arquivo(s)${folders != null ? ` · ${folders} pasta(s) lida(s)` : ''} · atualizado em ${date}${seconds != null ? ` (lido em ${seconds} s)` : ''}`,
     ignored: (list: string) => `Arquivos ignorados por não serem EPUB, PDF ou CBZ: ${list}.`,
     refreshing: (folders: number, files: number) => `Atualizando… ${folders} pasta(s), ${files} arquivo(s)`,
     catalogEmpty: 'Nenhuma obra com arquivos EPUB, PDF ou CBZ nesta pasta.',

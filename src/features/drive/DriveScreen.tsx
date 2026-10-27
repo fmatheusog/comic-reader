@@ -71,8 +71,8 @@ export default function DriveScreen() {
     setCrawling({ folders: 0, files: 0 });
     const startedAt = Date.now();
     try {
-      const { tree, ignored } = await crawlFolder(target, (folders, files) => setCrawling({ folders, files }), controller.signal);
-      const next: Catalog = { builtAt: Date.now(), works: buildWorks(tree), ignored };
+      const { tree, ignored, folders } = await crawlFolder(target, (folders, files) => setCrawling({ folders, files }), controller.signal);
+      const next: Catalog = { builtAt: Date.now(), works: buildWorks(tree), ignored, folders };
       await saveCatalog(next);
       setCatalog(next);
       setCrawlSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
@@ -283,7 +283,7 @@ export default function DriveScreen() {
               {categories.length > 0 && works.some((w) => !w.category) && chip(t.drive.otherCategory, category === '', () => setCategory(''))}
             </ScrollView>
             <Text style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>
-              {t.drive.summary(works.length, works.reduce((n, w) => n + w.files.length, 0), new Date(catalog.builtAt).toLocaleDateString('pt-BR'), crawlSeconds)}
+              {t.drive.summary(works.length, works.reduce((n, w) => n + w.files.length, 0), new Date(catalog.builtAt).toLocaleDateString('pt-BR'), crawlSeconds, catalog.folders ?? null)}
             </Text>
             {ignoredText && <Text style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>{ignoredText}</Text>}
             {crawling && (

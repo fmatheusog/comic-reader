@@ -5,13 +5,10 @@ import { t } from '@/shared/i18n/pt';
 import { getAccessToken } from './auth';
 import {
   LIST_FIELDS,
-  LIST_FIELDS_WITH_PARENTS,
-  chunk,
   classifyDriveError,
   ignoredKey,
   QUERY_SHARED,
   queryChildren,
-  queryChildrenOf,
   sortEntries,
   toEntry,
   type DriveEntry,
@@ -99,8 +96,7 @@ export const listSharedWithMe = () => listQuery(QUERY_SHARED);
 /** Conteúdo de uma pasta; 'root' é o "Meu Drive". */
 export const listFolder = (folderId: string) => listQuery(queryChildren(folderId));
 
-const FOLDERS_PER_QUERY = 20; // pastas lidas por consulta
-const PARALLEL_QUERIES = 6; // consultas ao mesmo tempo
+const PARALLEL_FOLDERS = 10; // pastas lidas ao mesmo tempo
 
 /** Executa `fn` para cada item com no máximo `limit` em andamento, sem esperar o mais lento de cada grupo. */
 async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>) {
@@ -111,26 +107,15 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<v
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
 }
 
-type Child = { parent: string; entry: DriveEntry };
-
-/**
- * Itens diretamente dentro de várias pastas, cada um ligado à pasta onde está.
- * O Drive nem sempre devolve `parents`; se algum item não puder ser ligado à sua pasta num lote
- * com várias, lemos as pastas desse lote uma a uma (mais lento, mas sem perder nada).
- */
-async function listChildrenBatch(
-  folderIds: string[],
-  ignored: Map<string, number>,
-): Promise<Child[]> {
-  const wanted = new Set(folderIds);
-  const out: Child[] = [];
-  const skipped = new Map<string, number>();
-  let unattributed = 0;
+/** O que há diretamente numa pasta, mais a contagem do que foi ignorado por tipo. */
+async function listChildren(folderId: string): Promise<{ entries: DriveEntry[]; ignored: string[] }> {
+  const entries: DriveEntry[] = [];
+  const ignored: string[] = [];
   let pageToken: string | undefined;
   do {
     const params = new URLSearchParams({
-      q: queryChildrenOf(folderIds),
-      fields: LIST_FIELDS_WITH_PARENTS,
+      q: queryChildren(folderId),
+      fields: LIST_FIELDS,
       pageSize: '1000',
       supportsAllDrives: 'true',
       includeItemsFromAllDrives: 'true',
@@ -139,38 +124,25 @@ async function listChildrenBatch(
     const body = await fetchPage(`${BASE}/files?${params}`);
     for (const f of body.files ?? []) {
       const entry = toEntry(f);
-      if (!entry) {
-        const key = ignoredKey(f);
-        skipped.set(key, (skipped.get(key) ?? 0) + 1);
-        continue;
-      }
-      let parents = (f.parents ?? []).filter((p) => wanted.has(p));
-      if (parents.length === 0 && folderIds.length === 1) parents = [folderIds[0]]; // única pasta possível
-      if (parents.length === 0) unattributed++;
-      for (const parent of parents) out.push({ parent, entry });
+      if (entry) entries.push(entry);
+      else ignored.push(ignoredKey(f));
     }
     pageToken = body.nextPageToken;
   } while (pageToken);
-
-  if (unattributed > 0 && folderIds.length > 1) {
-    const exact: Child[] = [];
-    for (const id of folderIds) exact.push(...(await listChildrenBatch([id], ignored)));
-    return exact;
-  }
-  for (const [key, n] of skipped) ignored.set(key, (ignored.get(key) ?? 0) + n);
-  return out;
+  return { entries, ignored };
 }
 
 /**
- * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas), nível por nível:
- * cada consulta traz o conteúdo de até 20 pastas e várias consultas rodam juntas.
- * Só lê; devolve a árvore para `buildWorks` transformar em obras e o que foi ignorado por tipo.
+ * Lê a pasta do catálogo e tudo que há dentro dela (subpastas incluídas), nível por nível,
+ * uma pasta por consulta e várias consultas ao mesmo tempo.
+ * Só lê; devolve a árvore para `buildWorks` transformar em obras, o que foi ignorado por tipo
+ * e quantas pastas foram lidas.
  */
 export async function crawlFolder(
   root: { id: string; name: string },
   onProgress: (folders: number, files: number) => void,
   signal?: AbortSignal,
-): Promise<{ tree: DriveNode; ignored: Record<string, number> }> {
+): Promise<{ tree: DriveNode; ignored: Record<string, number>; folders: number }> {
   const rootNode: DriveNode = { id: root.id, name: root.name, files: [], children: [] };
   const ignored = new Map<string, number>();
   const seen = new Set([root.id]); // atalhos podem formar ciclos
@@ -179,30 +151,29 @@ export async function crawlFolder(
   let files = 0;
 
   while (frontier.length) {
-    const byId = new Map(frontier.map((n) => [n.id, n]));
     const next: DriveNode[] = [];
-    await mapLimit(chunk(frontier, FOLDERS_PER_QUERY), PARALLEL_QUERIES, async (batch) => {
+    await mapLimit(frontier, PARALLEL_FOLDERS, async (node) => {
       if (signal?.aborted) throw new Error('cancelado');
-      for (const { parent, entry } of await listChildrenBatch(batch.map((n) => n.id), ignored)) {
-        const node = byId.get(parent);
-        if (!node) continue;
-        if (entry.kind === 'folder') {
-          if (seen.has(entry.id)) continue;
-          seen.add(entry.id);
-          const child: DriveNode = { id: entry.id, name: entry.name, files: [], children: [] };
+      const { entries, ignored: skipped } = await listChildren(node.id);
+      for (const e of entries) {
+        if (e.kind === 'folder') {
+          if (seen.has(e.id)) continue;
+          seen.add(e.id);
+          const child: DriveNode = { id: e.id, name: e.name, files: [], children: [] };
           node.children.push(child);
           next.push(child);
         } else {
-          node.files.push({ id: entry.id, name: entry.name, format: entry.format, size: entry.size });
+          node.files.push({ id: e.id, name: e.name, format: e.format, size: e.size });
           files++;
         }
       }
-      folders += batch.length;
+      for (const key of skipped) ignored.set(key, (ignored.get(key) ?? 0) + 1);
+      folders++;
       onProgress(folders, files);
     });
     frontier = next;
   }
-  return { tree: rootNode, ignored: Object.fromEntries(ignored) };
+  return { tree: rootNode, ignored: Object.fromEntries(ignored), folders };
 }
 
 /** Apaga o que sobrou de downloads no cache (interrompidos ou cancelados). */
