@@ -128,6 +128,8 @@ test('classifica erros da Drive API pelo motivo, sem depender do texto', () => {
   assert.equal(classifyDriveError(403, body('userRateLimitExceeded')).kind, 'rateLimit');
   assert.equal(classifyDriveError(429, '').kind, 'rateLimit');
   assert.equal(classifyDriveError(403, body('forbidden')).kind, 'forbidden');
-  assert.deepEqual(classifyDriveError(404, 'não é json'), { kind: 'notFound', reason: null });
+  assert.deepEqual(classifyDriveError(404, 'não é json'), { kind: 'notFound', reason: null, project: null });
+  const disabled = JSON.stringify({ error: { message: 'Google Drive API has not been used in project 123456789012 before or it is disabled.', errors: [{ reason: 'accessNotConfigured' }] } });
+  assert.equal(classifyDriveError(403, disabled).project, '123456789012');
   assert.equal(classifyDriveError(500, '').kind, 'http');
 });

@@ -131,7 +131,10 @@ export type DriveErrorKind = 'apiDisabled' | 'scope' | 'rateLimit' | 'forbidden'
  * Descobre o motivo de uma resposta de erro da Drive API. Só usa o código de motivo
  * (por exemplo "accessNotConfigured"); o texto da resposta pode citar ids e não é repassado.
  */
-export function classifyDriveError(status: number, bodyText: string): { kind: DriveErrorKind; reason: string | null } {
+export function classifyDriveError(
+  status: number,
+  bodyText: string,
+): { kind: DriveErrorKind; reason: string | null; project: string | null } {
   let reason: string | null = null;
   let message = '';
   try {
@@ -141,14 +144,16 @@ export function classifyDriveError(status: number, bodyText: string): { kind: Dr
   } catch {
     // corpo que não é JSON
   }
-  if (reason === 'accessNotConfigured' || /has not been used|is disabled/i.test(message)) return { kind: 'apiDisabled', reason };
+  // número do projeto que recusou (não é segredo); ajuda a ver se a API foi ativada no projeto certo
+  const project = /project[\s=:]+(\d{6,})/i.exec(message)?.[1] ?? null;
+  if (reason === 'accessNotConfigured' || /has not been used|is disabled/i.test(message)) return { kind: 'apiDisabled', reason, project };
   if (reason === 'insufficientPermissions' || reason === 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' || /insufficient (authentication )?scopes?/i.test(message))
-    return { kind: 'scope', reason };
+    return { kind: 'scope', reason, project };
   if (reason === 'rateLimitExceeded' || reason === 'userRateLimitExceeded' || reason === 'dailyLimitExceeded' || status === 429)
-    return { kind: 'rateLimit', reason };
-  if (status === 403) return { kind: 'forbidden', reason };
-  if (status === 404) return { kind: 'notFound', reason };
-  return { kind: 'http', reason };
+    return { kind: 'rateLimit', reason, project };
+  if (status === 403) return { kind: 'forbidden', reason, project };
+  if (status === 404) return { kind: 'notFound', reason, project };
+  return { kind: 'http', reason, project };
 }
 
 /** Aceita o link da pasta (drive.google.com/drive/folders/ID, com ou sem parâmetros) ou o próprio id. */

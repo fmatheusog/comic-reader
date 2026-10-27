@@ -32,7 +32,7 @@ async function authedFetch(url: string, retry = true): Promise<Response> {
 
 /** Erro com mensagem em português e o código HTTP/motivo (nunca o corpo da resposta nem ids). */
 async function driveError(res: Response): Promise<{ error: Error; retryable: boolean }> {
-  const { kind, reason } = classifyDriveError(res.status, await res.text().catch(() => ''));
+  const { kind, reason, project } = classifyDriveError(res.status, await res.text().catch(() => ''));
   const friendly: Record<typeof kind, string> = {
     apiDisabled: t.drive.errApiDisabled,
     scope: t.drive.errScope,
@@ -41,7 +41,7 @@ async function driveError(res: Response): Promise<{ error: Error; retryable: boo
     notFound: t.drive.errNotFound,
     http: t.drive.loadError,
   };
-  const detail = `HTTP ${res.status}${reason ? `, ${reason}` : ''}`;
+  const detail = `HTTP ${res.status}${reason ? `, ${reason}` : ''}${project ? `, projeto ${project}` : ''}`;
   return { error: new Error(`${friendly[kind]} (${detail})`), retryable: kind === 'rateLimit' || res.status >= 500 };
 }
 
