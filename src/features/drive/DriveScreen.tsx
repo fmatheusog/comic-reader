@@ -11,6 +11,7 @@ import { restoreSession, signIn, signOut, type DriveAccount } from './auth';
 import { clearCatalog, loadCatalog, loadRoot, saveCatalog, saveRoot, type CatalogRoot } from './catalogStore';
 import { configuredFolderId } from './folderConfig';
 import { FolderPicker } from './FolderPicker';
+import { ImportStatus } from './ImportStatus';
 import { buildWorks, pendingFiles, workProgress, type Catalog, type Work } from './model';
 import { useDriveImport } from './useDriveImport';
 import { useImported } from './useImported';
@@ -296,7 +297,7 @@ export default function DriveScreen() {
               </View>
             )}
             {error && <Text style={styles.error}>{error}</Text>}
-            {importer.status && <Text style={{ color: theme.textMuted, marginBottom: 8 }}>{importer.status}</Text>}
+            <ImportStatus status={importer.status} failedCount={importer.failedCount} onRetry={importer.retryFailed} />
           </View>
         }
         ListEmptyComponent={

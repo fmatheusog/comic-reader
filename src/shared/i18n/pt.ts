@@ -141,6 +141,7 @@ export const t = {
     selected: (n: number) => (n === 1 ? '1 selecionado' : `${n} selecionados`),
     selectedWorks: (works: number, files: number) => `${works} obra(s) · ${files} novo(s)`,
     importSelected: 'Importar',
+    retryFailed: (n: number) => (n === 1 ? 'Tentar de novo o que falhou (1)' : `Tentar de novo os que falharam (${n})`),
     nothingNew: 'Tudo o que você escolheu já foi importado.',
     downloading: (i: number, total: number) => `Baixando ${i} de ${total}`,
     cancel: 'Cancelar',

@@ -1,3 +1,4 @@
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +11,8 @@ import { clearDriveCache, downloadFile } from './api';
 import type { RemoteFile } from './model';
 
 type Progress = { index: number; total: number; name: string; received: number; totalBytes: number };
+
+const KEEP_AWAKE_TAG = 'drive-import';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -24,8 +27,14 @@ export function useDriveImport(onFinished: () => void) {
   const [batch, setBatch] = useState(0);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [failed, setFailed] = useState<ImportDraft[]>([]);
   const abort = useRef<AbortController | null>(null);
   const sizes = useRef(new Map<string, number | null>());
+
+  /** Refaz só o que falhou, sem passar de novo pela revisão (os dados já foram conferidos). */
+  const retryFailed = () => {
+    if (failed.length > 0) run(failed);
+  };
 
   const begin = (files: RemoteFile[]) => {
     if (files.length === 0) {
@@ -43,6 +52,9 @@ export function useDriveImport(onFinished: () => void) {
     const controller = new AbortController();
     abort.current = controller;
     const outcomes: ImportOutcome[] = [];
+    const failedDrafts: ImportDraft[] = [];
+    // um lote longo não pode ser interrompido pelo Android apagando a tela
+    await activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     try {
       for (let i = 0; i < drafts.length; i++) {
         if (controller.signal.aborted) break;
@@ -55,15 +67,20 @@ export function useDriveImport(onFinished: () => void) {
               setProgress((p) => (p ? { ...p, received, totalBytes: totalBytes > 0 ? totalBytes : p.totalBytes } : p)),
             controller.signal,
           );
-          outcomes.push(await importDraft({ ...d, uri: file.uri }));
+          const outcome = await importDraft({ ...d, uri: file.uri });
+          outcomes.push(outcome);
+          if (!outcome.ok) failedDrafts.push(d);
         } catch (e) {
           if (controller.signal.aborted) break;
           outcomes.push({ name: d.name, ok: false, error: errorText(e) });
+          failedDrafts.push(d);
         }
       }
     } finally {
+      deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
       clearDriveCache();
       setProgress(null);
+      setFailed(failedDrafts);
       const ok = outcomes.filter((o) => o.ok).length;
       const firstError = outcomes.find((o) => !o.ok)?.error;
       const cancelled = controller.signal.aborted ? ` ${t.drive.cancelled}` : '';
@@ -104,7 +121,7 @@ export function useDriveImport(onFinished: () => void) {
     </>
   );
 
-  return { begin, ui, status, setStatus, busy: !!progress };
+  return { begin, ui, status, setStatus, busy: !!progress, failedCount: failed.length, retryFailed };
 }
 
 const styles = StyleSheet.create({

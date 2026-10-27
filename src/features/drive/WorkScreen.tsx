@@ -8,6 +8,7 @@ import { formatBytes } from '@/shared/utils/bytes';
 import { useAppTheme } from '@/shared/theme';
 
 import { loadCatalog } from './catalogStore';
+import { ImportStatus } from './ImportStatus';
 import { pendingFiles, workProgress, type CatalogFile, type Work } from './model';
 import { useDriveImport } from './useDriveImport';
 import { useImported } from './useImported';
@@ -100,7 +101,7 @@ export default function WorkScreen() {
                 </Text>
               </Pressable>
             )}
-            {importer.status && <Text style={{ color: theme.textMuted }}>{importer.status}</Text>}
+            <ImportStatus status={importer.status} failedCount={importer.failedCount} onRetry={importer.retryFailed} />
           </View>
         }
         renderItem={({ item }) => {
