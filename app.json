@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "br.fmatheusog.comicreader",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#3B6EF5",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

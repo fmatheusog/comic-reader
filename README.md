@@ -117,6 +117,11 @@ eas build -p android --profile preview
 
 O perfil `preview` (em `eas.json`) gera um **APK** instalável. Ao terminar, o EAS mostra um link e um QR code para baixar.
 
+**Antes do primeiro build do EAS (necessário para o Google Drive):**
+
+1. **SHA-1 da chave do EAS.** O EAS assina com uma chave própria, diferente da de debug, e o login do Google confere o SHA-1. Rode `npx eas-cli credentials -p android`, copie o SHA-1 do keystore e cadastre-o num **segundo cliente OAuth Android** (mesmo pacote `br.fmatheusog.comicreader`) no Google Cloud. Sem isso, o login dá "erro 10".
+2. **Pasta do Drive.** O `.env` não vai para o build na nuvem. Envie a variável ao EAS (o valor é o link da pasta; use visibilidade *sensitive*): `npx eas-cli env:set --name EXPO_PUBLIC_DRIVE_FOLDER --value "<link>" --environment preview --visibility sensitive`. Como é uma variável `EXPO_PUBLIC_*`, ela fica embutida no APK (veja Segurança acima). Os perfis do `eas.json` já apontam cada um para o seu ambiente.
+
 ### Local, com Android Studio
 
 Requisitos: Android Studio (SDK + JDK 17) e `ANDROID_HOME` configurado.
@@ -127,7 +132,11 @@ cd android
 ./gradlew assembleRelease      # no Windows: gradlew.bat assembleRelease
 ```
 
-O APK sai em `android/app/build/outputs/apk/release/app-release.apk`. Por padrão o template assina o release com a chave de debug, o que serve para uso pessoal. Para uma chave sua, configure um `keystore` em `android/app/build.gradle`.
+O APK sai em `android/app/build/outputs/apk/release/app-release.apk`. O Metro lê o `.env` ao empacotar, então a pasta do Drive entra no APK local sem configurar mais nada, e como o release local usa a chave de debug, o SHA-1 já cadastrado para o desenvolvimento serve. Por padrão o template assina o release com a chave de debug, o que serve para uso pessoal. Para uma chave sua, configure um `keystore` em `android/app/build.gradle`.
+
+### Versão
+
+A cada APK novo que você for instalar por cima do anterior, aumente `expo.android.versionCode` (e, se quiser, `expo.version`) no `app.json`. O Android só aceita atualizar por cima com um `versionCode` maior. Depois de mudar o `app.json`, rode `npx expo prebuild --platform android` de novo antes do `gradlew`.
 
 ## Instalando no tablet
 
